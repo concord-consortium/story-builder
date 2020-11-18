@@ -75,6 +75,7 @@ interface IConfig {
   dimensions?: any;
   preventBringToFront?: any;
   preventDataContextReorg?: any;
+	subscribeToDocuments?: any;
 }
 
 var config: IConfig | null = null;
@@ -89,7 +90,7 @@ var config: IConfig | null = null;
  * initiated by the init method if CODAP was started from a previously saved
  * document.
  */
-var interactiveState = {};
+var interactiveState:any = {};
 
 /**
  * A list of subscribers to messages from CODAP
@@ -221,7 +222,8 @@ const codapInterface = {
         version: iConfig.version,
         dimensions: iConfig.dimensions,
         preventBringToFront: iConfig.preventBringToFront,
-        preventDataContextReorg: iConfig.preventDataContextReorg
+        preventDataContextReorg: iConfig.preventDataContextReorg,
+				subscribeToDocuments: iConfig.subscribeToDocuments
       };
       var updateFrameReq = {
         action: 'update',
@@ -235,11 +237,13 @@ const codapInterface = {
       connection = new IframePhoneRpcEndpoint(
           notificationHandler, "data-interactive", window.parent);
 
+/*
       if (!config.customInteractiveStateHandler) {
         this_.on('get', 'interactiveState', function () {
           return ({success: true, values: this_.getInteractiveState()});
         }.bind(this_));
       }
+*/
 
       // console.log('sending interactiveState: ' + JSON.stringify(this_.getInteractiveState));
       // update, then get the interactiveFrame.
@@ -250,7 +254,6 @@ const codapInterface = {
 
   /**
    * Current known state of the connection
-   * @param {'preinit' || 'init' || 'active' || 'inactive' || 'closed'}
    */
   getConnectionState: function () {return connectionState;},
 
@@ -351,7 +354,7 @@ const codapInterface = {
    *   'move', 'resize', .... If not specified, all operations will be reported.
    * @param handler {Function} A handler to receive the notifications.
    */
-  on: function (actionSpec: string, resourceSpec: string, operation: string | (() => void), handler?: () => void) {
+  on: function (actionSpec: string, resourceSpec: string, operation: string | (() => void), handler?: (...args:any) => void) {
     var as = 'notify',
         rs,
         os,

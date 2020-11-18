@@ -1,61 +1,14 @@
 import codapInterface from "./CodapInterface";
 
-export function initializePlugin(pluginName: string, version: string, dimensions: {width: number, height: number}) {
+export function initializePlugin(pluginName: string, version: string, dimensions: {width: number, height: number},
+                                 iRestoreStateHandler:(arg0: any) => void) {
   const interfaceConfig = {
+    customInteractiveStateHandler: true,
     name: pluginName,
     version: version,
-    dimensions: dimensions
+    dimensions: dimensions,
+    subscribeToDocuments: true
   };
-  return codapInterface.init(interfaceConfig);
+  return codapInterface.init(interfaceConfig, iRestoreStateHandler);
 }
 
-const dataSetString = (contextName: string) => `dataContext[${contextName}]`;
-
-export function createDataContext(dataContextName: string) {
-  // Determine if CODAP already has the Data Context we need.
-  // If not, create it.
-  return codapInterface.sendRequest({
-      action:'get',
-      resource: dataSetString(dataContextName)
-      }, function (result: { success: any; }) {
-      if (result && !result.success) {
-        codapInterface.sendRequest({
-          action: 'create',
-          resource: 'dataContext',
-          values: {
-            name: dataContextName,
-            collections: [
-              {
-                name: 'items',
-                labels: {
-                  pluralCase: "items",
-                  setOfCasesWithArticle: "an item"
-                },
-                attrs: [{name: "value"}]
-              }
-            ]
-          }
-        });
-      }
-    }
-  );
-}
-
-export function openTable() {
-  codapInterface.sendRequest({
-    action: 'create',
-    resource: 'component',
-    values: {
-      type: 'caseTable'
-    }
-  });
-}
-
-export function addData(dataContextName: string, data: number[]) {
-  const values = data.map(d => ({value: d}));
-  codapInterface.sendRequest({
-    action: 'create',
-    resource: `${dataSetString(dataContextName)}.item`,
-    values
-  });
-}

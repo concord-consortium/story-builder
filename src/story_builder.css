@@ -1,0 +1,141 @@
+:root {
+  --teal-dark: #177991;
+  --teal-light: #72bfca;
+  --text: #222222;
+  --moment-width: 114px;
+  --icon-height: 30px;
+}
+
+.SB {
+  font-family: Helvetica, sans-serif;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.SB div {
+  /*margin: 0;*/
+}
+
+.SB-empty-back {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  background-color: #ededed;
+}
+
+.SB-button {
+  position: absolute;
+  display: inline-block;
+}
+
+.SB-help-default {
+  right: 0;
+  object-fit: contain;
+  content: url("./img/help-default.svg");
+}
+
+.SB-help-default:hover {
+  content: url("./img/help-hover-click.svg");
+}
+
+.SB-story-area {
+  height: 100%;
+  margin: 0;
+  padding: 5px;
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.SB-moment-container {
+  margin-left: 15px;
+  display: flex;
+  justify-content: center;
+  float: left;
+  height: 100%;
+}
+
+.SB-moment-container:first-child {
+  margin-left: 0;
+}
+
+.SB-moment {
+  float: left;
+  padding: 0 3px 3px 0;
+  border-radius: 5px;
+  border: solid 2px #d6d6d6;
+  background-color: white;
+  height: 55%;
+  width: var(--moment-width);
+}
+.SB-moment:hover {
+  background-color: rgba(114, 191, 202, 0.1);
+}
+
+.SB-moment-title {
+  margin-top: 3px;
+  margin-left: 3px;
+}
+
+.SB-moment-number {
+  width: 17px;
+  height: 15px;
+  margin: 0 86px 4px 0;
+  border-radius: 4px;
+  border: solid 1px #d6d6d6;
+  background-color: #d6d6d6;
+  text-align: center;
+  float: left;
+}
+
+.SB-control-area {
+  position: absolute;
+  bottom: 3px;
+  width: var(--moment-width);
+  height: var(--icon-height);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 3px;
+}
+
+.SB-revert-default{
+  object-fit: contain;
+  content: url("./img/revert-default.svg");
+}
+
+.SB-revert-default:hover{
+  content: url("./img/revert-hover-click.svg");
+}
+
+.SB-revert-disabled{
+  object-fit: contain;
+  content: url("./img/revert-disabled.svg");
+}
+
+.SB-save-default{
+  object-fit: contain;
+  content: url("./img/save-default.svg");
+}
+
+.SB-save-default:hover{
+  content: url("./img/save-hover-click.svg");
+}
+
+.SB-save-disabled{
+  object-fit: contain;
+  content: url("./img/save-disabled.svg");
+}
+
+.SB-duplicate-default{
+  object-fit: contain;
+  content: url("./img/duplicate-default.svg");
+}
+
+.SB-duplicate-default:hover{
+  content: url("./img/duplicate-hover-click.svg");
+}
+
+.SB-duplicate-disabled{
+  object-fit: contain;
+  content: url("./img/duplicate-disabled.svg");
+}
+
