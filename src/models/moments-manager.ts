@@ -15,9 +15,6 @@ export class MomentsManager {
 	private kInitialJSONText_start = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"This is the beginning of your data story."}]},{"type":"paragraph","children":[{"text":"Esto es el comienzo de su cuento de datos."}]}],"objTypes":{"paragraph":"block"}}}`;
 
 	constructor() {
-		this.startingMoment = new Moment(1);	// Temporary!
-		this.currentMoment = new Moment(2,'active');
-		this.insertMomentAfterMoment( this.currentMoment, this.startingMoment);
 	}
 
 	getCurrentMomentTitle(): string {
@@ -51,7 +48,7 @@ export class MomentsManager {
 		if (!(iStorage && iStorage.moments))
 			return;
 		iStorage.moments.forEach((iMomentStorage: any, iIndex: number) => {
-			let tMoment = new Moment(iIndex);
+			let tMoment = new Moment(iIndex, iIndex);
 			tMoment.restoreFromStorage(iMomentStorage);
 			if (!this_.startingMoment) {
 				this_.startingMoment = tMoment;
@@ -62,7 +59,7 @@ export class MomentsManager {
 			}
 			tCurrMoment = tMoment;
 			if (iStorage.currentMomentIndex === iIndex)
-				this_.currentMoment = tMoment;
+				this_.setCurrentMoment(tMoment);
 		})
 	}
 
@@ -88,6 +85,12 @@ export class MomentsManager {
 		return tCount;
 	}
 
+	renumberMoments() {
+		this.forEachMoment((iMoment:Moment, iIndex:number)=>{
+			iMoment.momentNumber = iIndex + 1;	// 1-based
+		})
+	}
+
 	/**
 	 * Return the Moment corresponding to the given ID.
 	 * @param iID
@@ -102,13 +105,26 @@ export class MomentsManager {
 		return tFoundMoment;
 	}
 
+	setCurrentMoment( iMoment:Moment | null) {
+		if(iMoment !== this.currentMoment) {
+			this.setMomentIsActive( this.currentMoment, false);
+			this.currentMoment = iMoment;
+			this.setMomentIsActive( this.currentMoment, true);
+		}
+	}
+
+	setMomentIsActive( iMoment:Moment | null, isActive:boolean) {
+		if( iMoment)
+			iMoment.setIsActive(isActive);
+	}
+
 	/**
 	 * Remove the given moment from the prev-next linked list
 	 * If the argument is null, nothing happens.
 	 *
 	 * @param iMoment
 	 */
-	removeMoment(iMoment: Moment | null) {
+	deleteMoment(iMoment: Moment | null) {
 		if (iMoment) {
 			const predecessor = iMoment.prev;
 			const successor = iMoment.next;
@@ -116,11 +132,11 @@ export class MomentsManager {
 			if (predecessor) {
 				predecessor.next = successor;    //  correct even if doomed is last in line
 				if( this.currentMoment === iMoment)
-					this.currentMoment = predecessor;
+					this.setCurrentMoment( predecessor);
 			} else {    //  no predecessor; the doomed one is the first
 				this.startingMoment = successor;   //  will be null if the list is now empty
 				if( this.currentMoment === iMoment)
-					this.currentMoment = successor; // do the next one if we killed off the first
+					this.setCurrentMoment( successor); // do the next one if we killed off the first
 			}
 
 			if (successor) {
@@ -130,10 +146,24 @@ export class MomentsManager {
 			iMoment.next = null;
 			iMoment.prev = null;
 		}
+		this.renumberMoments();
 	}
 
-	removeCurrentMoment() {
-		this.removeMoment(this.currentMoment);
+	deleteCurrentMoment() {
+		this.deleteMoment(this.currentMoment);
+		this.setMomentIsActive( this.currentMoment, true);
+	}
+
+	duplicateCurrentMoment() {
+		let tNewMoment = this.makeNewMomentUsingCodapState({});
+		tNewMoment.setIsNew(true);
+/*
+		tNewMoment.setIsNew( true);
+		setTimeout(()=>{
+			tNewMoment.setIsNew( false);
+			tNewMoment.callForceUpdate();
+		}, 1000);
+*/
 	}
 
 	/**
@@ -142,7 +172,7 @@ export class MomentsManager {
 	 * @param newMoment    moment to insert
 	 * @param previousMoment  moment after which to insert it.
 	 */
-	insertMomentAfterMoment(newMoment: Moment, previousMoment: Moment | null) {
+	insertMomentAfterMoment(newMoment: Moment, previousMoment: Moment | null):Moment {
 		let subsequentMoment;
 
 		if (previousMoment) {
@@ -162,6 +192,8 @@ export class MomentsManager {
 		if (subsequentMoment) {
 			subsequentMoment.prev = newMoment;
 		}
+		this.renumberMoments();
+		return newMoment;
 	}
 
 	/**
@@ -172,19 +204,22 @@ export class MomentsManager {
 	 * @param iCodapState
 	 */
 	makeNewMomentUsingCodapState(iCodapState: object): Moment {
-		let tNewMoment: Moment= new Moment(this.nextMomentID++);
+		let tNewMoment: Moment= new Moment(this.nextMomentID++, 0, 'new');
 		tNewMoment.setCodapState(iCodapState);
 
 		this.insertMomentAfterMoment(tNewMoment, this.currentMoment);
 
 		tNewMoment.title = (tNewMoment.ID === 0) ? "start ... comienzo" : "moment title/título";
 		tNewMoment.narrative = tNewMoment.ID ? this.kInitialJSONText : this.kInitialJSONText_start;
-		this.currentMoment = tNewMoment;
+		this.setCurrentMoment( tNewMoment);
+		this.renumberMoments();
 		return tNewMoment;
 	}
 
-	setCurrentMoment( iMoment:Moment) {
-		this.currentMoment = iMoment;
+	handleMomentClick(iMoment:Moment) {
+		this.setCurrentMoment(iMoment);
+		if( iMoment)
+			iMoment.setIsBeingEdited( true);
 	}
 
 	/**

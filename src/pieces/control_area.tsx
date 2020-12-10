@@ -3,15 +3,17 @@
  */
 
 import React, {Component} from "react";
-import {MomentState} from "../utilities/sb_types";
+import {Moment} from "../models/moment";
 
-export class ControlArea extends Component<{ momentState:MomentState }, any> {
+export class ControlArea extends Component<{
+	myMoment:Moment,
+	onDuplicateCallback:any
+}, any> {
 
 	constructor(props:any) {
 		super(props);
 		this.handleRevert = this.handleRevert.bind(this);
 		this.handleSave = this.handleSave.bind(this);
-		this.handleDuplicate = this.handleDuplicate.bind(this);
 	}
 
 	handleRevert() {
@@ -22,19 +24,19 @@ export class ControlArea extends Component<{ momentState:MomentState }, any> {
 
 	}
 
-	handleDuplicate() {
-
-	}
-
 	render() {
+		const kDefOrDis = this.props.myMoment.isChanged ? 'default' : 'disabled';
 		return (
 			<div className='SB-control-area'>
-				<img className={`SB-revert-${this.props.momentState.revert}`} alt='Discard changes'
-						 onClick={() => this.handleRevert()}/>
-				<img className={`SB-save-${this.props.momentState.revert}`} alt='Save'
-						 onClick={() => this.handleSave()}/>
-				<img className={`SB-duplicate-${this.props.momentState.revert}`} alt='Make a new moment'
-						 onClick={() => this.handleDuplicate()}/>
+				<img className={`SB-revert-${kDefOrDis}`} alt='Discard changes'
+						 onClick={() => this.handleRevert()}
+						 title="Discard changes to this moment"/>
+				<img className={`SB-save-${kDefOrDis}`} alt='Save'
+						 onClick={() => this.handleSave()}
+						 title="Save this moment"/>
+				<img className={`SB-duplicate-default`} alt='Make a new moment'
+						 onClick={() => this.props.onDuplicateCallback()}
+						 title="Add a new moment to the right"/>
 			</div>
 		);
 	}

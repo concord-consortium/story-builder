@@ -368,7 +368,7 @@ export class StoryArea {
 	}
 
 	private deleteCurrentMoment(): void {
-		this.momentsManager.removeCurrentMoment();    //  also sets a new currentMoment
+		this.momentsManager.deleteCurrentMoment();    //  also sets a new currentMoment
 		console.log(`moment removed from momentsManager; ready to match to new current moment`);
 		this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
 	}

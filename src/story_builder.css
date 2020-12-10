@@ -58,6 +58,12 @@
   margin-left: 0;
 }
 
+.SB-moment-container.start {
+  transition: transform 500ms;
+  transform: translateX(-114px);
+  z-index: 0;
+}
+
 .SB-moment {
   float: left;
   padding: 0 3px 3px 0;
@@ -66,14 +72,40 @@
   background-color: white;
   height: 55%;
   width: var(--moment-width);
+  z-index: 1;
 }
 .SB-moment:hover {
   background-color: rgba(114, 191, 202, 0.1);
 }
 
+.SB-moment.active {
+  border-color: var(--teal-dark);
+  background-color: rgba(114, 191, 202, 0.1);
+}
+
+.SB-moment.active:hover {
+  background-color: rgba(114, 191, 202, 0.2);
+}
+
+.SB-moment.changed {
+  background-color: rgba(255, 252, 55, 0.2);
+}
+
+.SB-moment.changed:hover {
+  background-color: rgba(255, 252, 55, 0.4);
+}
+
 .SB-moment-title {
   margin-top: 3px;
   margin-left: 3px;
+}
+
+.SB-title-editor {
+  font-family: Helvetica, sans-serif;
+  font-size: 12px;
+  width: calc(var(--moment-width) - 8px);
+  resize: none;
+  border: none;
 }
 
 .SB-moment-number {
@@ -87,6 +119,13 @@
   float: left;
 }
 
+.SB-delete-area {
+  position: relative;
+  margin-top: -9px;
+  width: 130px;
+  right: 0;
+}
+
 .SB-control-area {
   position: absolute;
   bottom: 3px;
@@ -95,6 +134,18 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-gap: 3px;
+}
+
+.SB-delete-default{
+  width: 25px;
+  height: 25px;
+  position: absolute;
+  right: 0;
+  content: url("./img/delete-default.svg");
+}
+
+.SB-delete-default:hover{
+  content: url("./img/delete-hover-click.svg");
 }
 
 .SB-revert-default{

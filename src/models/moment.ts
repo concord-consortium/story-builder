@@ -4,19 +4,35 @@
 
 export class Moment {
 	public ID: number = 0;
+	public momentNumber: number = 0;
 	public prev: Moment | null = null;
 	public next: Moment | null = null;
-	private myState = 'inactive';
 	public codapState: object = {};
 	public title: string = "This is a nice new moment with lots of text";
 	public created: Date = new Date();
 	public modified: Date = new Date();
 	public narrative: any = "";
+	public isBeingEdited = false;
+	private isNewMoment:boolean = false;
+	private myState = 'inactive';	// 'inactive' | 'active
+	public isChanged = false;
+	private forceUpdateCallback:(()=>void) | null = null;
 
-	constructor( iID:number, iState?:string) {
+	constructor( iID:number, iMomentNumber:number, iState?:string) {
 		this.ID = iID;
+		this.momentNumber = iMomentNumber;
 		if( iState)
 			this.myState = iState;
+	}
+
+	setForceUpdateCallback( iCallback:()=>void) {
+		this.forceUpdateCallback = iCallback;
+	}
+
+	callForceUpdate() {
+		if(this.forceUpdateCallback) {
+			this.forceUpdateCallback();
+		}
 	}
 
 	createStorage() {
@@ -38,8 +54,28 @@ export class Moment {
 
 	}
 
+	isNew():boolean {
+		return this.isNewMoment;
+	}
+
+	setIsNew( iIsNew:boolean) {
+		this.isNewMoment = iIsNew;
+	}
+
 	isActive():boolean {
 		return this.myState === 'active';
+	}
+
+	setIsActive( iActive:boolean) {
+		this.myState = iActive ? 'active' : 'inactive';
+		if( !iActive) {
+			this.isBeingEdited = false;
+			this.isChanged = false;
+		}
+	}
+
+	setIsBeingEdited( iIsBeingEdited:boolean) {
+		this.isBeingEdited = iIsBeingEdited;
 	}
 
 	toString(): string {
@@ -51,7 +87,11 @@ export class Moment {
 	}
 
 	setTitle(iTitle: string) {
-		this.title = iTitle;
+		if( iTitle !== this.title) {
+			this.title = iTitle;
+			this.isChanged = true;
+			this.callForceUpdate();
+		}
 	}
 
 	setNarrative(iText: string) {

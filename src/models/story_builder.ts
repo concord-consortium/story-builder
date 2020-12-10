@@ -4,15 +4,17 @@ import codapInterface from "../lib/CodapInterface";
 
 export class StoryBuilder {
 
-	public storyArea:StoryArea = new StoryArea();
+	public storyArea:StoryArea;
 
 	constructor() {
 		this.restorePluginState = this.restorePluginState.bind(this);
+		this.initialize();
+		this.storyArea = new StoryArea();
 	}
 
 	async initialize() {
 		const kPluginName = "Story Builder";
-		const kVersion = "0.6.1";
+		const kVersion = "0.7";
 		const kInitialDimensions = {
 			width: 800,
 			height: 130

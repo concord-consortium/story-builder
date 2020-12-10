@@ -338,7 +338,7 @@ const codapInterface = {
               handleResponse(message, response, callback);
             });
           } else {
-            // console.error('sendRequest on non-existent CODAP connection');
+            console.error('sendRequest on non-existent CODAP connection');
           }
       }
     });

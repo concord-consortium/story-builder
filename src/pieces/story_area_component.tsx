@@ -4,18 +4,40 @@ import {MomentsManager} from "../models/moments-manager";
 import {Moment} from "../models/moment";
 import {MomentComponent} from "./moment_component";
 
-export class StoryAreaComponent extends Component<{ myStoryArea:StoryArea }, {}> {
+export class StoryAreaComponent extends Component<{ myStoryArea:StoryArea }, {count:number}> {
 
 	private myMomentsManager:MomentsManager;
 
 	constructor(props:any) {
 		super(props);
-		this.props.myStoryArea.setForceUpdateCallback( this.forceUpdate);
+		this.state = {count: 0};
+
+		this.onMomentClick = this.onMomentClick.bind(this);
+		this.onMomentDelete = this.onMomentDelete.bind(this);
+		this.onMomentDuplicate = this.onMomentDuplicate.bind(this);
+		this.refresh = this.refresh.bind(this);
+
+		this.props.myStoryArea.setForceUpdateCallback( this.refresh);
 		this.myMomentsManager = props.myStoryArea.momentsManager;
 	}
 
+	refresh() {
+		this.setState({count: this.state.count + 1});
+	}
+
 	onMomentClick(moment:Moment) {
-		this.myMomentsManager.setCurrentMoment(moment);
+		this.myMomentsManager.handleMomentClick(moment);
+		this.refresh();
+	}
+
+	onMomentDelete() {
+		this.myMomentsManager.deleteCurrentMoment();
+		this.refresh();
+	}
+
+	onMomentDuplicate() {
+		this.myMomentsManager.duplicateCurrentMoment();
+		this.refresh();
 	}
 
 	render() {
@@ -23,11 +45,14 @@ export class StoryAreaComponent extends Component<{ myStoryArea:StoryArea }, {}>
 
 		function momentsComponents() {
 			let tComponents:ReactElement[] = [];
-			this_.myMomentsManager.forEachMoment((iMoment:Moment, iIndex:number) => {
+			this_.myMomentsManager.forEachMoment((iMoment:Moment) => {
 				tComponents.push(
-					<MomentComponent key={`moment-${iIndex}`}
+					<MomentComponent key={`moment-${iMoment.ID}`}
 													 	myMoment={iMoment}
-														onClickCallback={this_.onMomentClick}/>
+													  isNew={iMoment.isNew()}
+														onClickCallback={this_.onMomentClick}
+														onDeleteCallback={this_.onMomentDelete}
+														onDuplicateCallback={this_.onMomentDuplicate}/>
 				)
 			});
 			return tComponents;
