@@ -12,7 +12,6 @@ export class Moment {
 	public created: Date = new Date();
 	public modified: Date = new Date();
 	public narrative: any = "";
-	public isBeingEdited = false;
 	private isNewMoment:boolean = false;
 	private myState = 'inactive';	// 'inactive' | 'active
 	public isChanged = false;
@@ -69,13 +68,8 @@ export class Moment {
 	setIsActive( iActive:boolean) {
 		this.myState = iActive ? 'active' : 'inactive';
 		if( !iActive) {
-			this.isBeingEdited = false;
 			this.isChanged = false;
 		}
-	}
-
-	setIsBeingEdited( iIsBeingEdited:boolean) {
-		this.isBeingEdited = iIsBeingEdited;
 	}
 
 	toString(): string {

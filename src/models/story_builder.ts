@@ -8,7 +8,6 @@ export class StoryBuilder {
 
 	constructor() {
 		this.restorePluginState = this.restorePluginState.bind(this);
-		this.initialize();
 		this.storyArea = new StoryArea();
 	}
 
@@ -21,8 +20,8 @@ export class StoryBuilder {
 		}
 
 		await initializePlugin(kPluginName, kVersion, kInitialDimensions, this.restorePluginState)
-			.catch(() => {
-				console.log(`••• problem initializing the plugin`)
+			.catch((e) => {
+				console.log(`••• problem initializing the plugin——`, e)
 			});
 
 		const getComponentListMessage = {
@@ -45,8 +44,10 @@ export class StoryBuilder {
 			};
 			await codapInterface.sendRequest(adjustPluginMessage);
 		} catch (err) {
-			console.log('error trying to get id: ' + err);
+			console.log('••• error trying to get id: ' + err);
 		}
+
+		await this.storyArea.initialize();
 	}
 
 	restorePluginState(iState: any) {

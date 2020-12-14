@@ -157,13 +157,6 @@ export class MomentsManager {
 	duplicateCurrentMoment() {
 		let tNewMoment = this.makeNewMomentUsingCodapState({});
 		tNewMoment.setIsNew(true);
-/*
-		tNewMoment.setIsNew( true);
-		setTimeout(()=>{
-			tNewMoment.setIsNew( false);
-			tNewMoment.callForceUpdate();
-		}, 1000);
-*/
 	}
 
 	/**
@@ -214,12 +207,6 @@ export class MomentsManager {
 		this.setCurrentMoment( tNewMoment);
 		this.renumberMoments();
 		return tNewMoment;
-	}
-
-	handleMomentClick(iMoment:Moment) {
-		this.setCurrentMoment(iMoment);
-		if( iMoment)
-			iMoment.setIsBeingEdited( true);
 	}
 
 	/**

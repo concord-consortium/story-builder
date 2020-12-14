@@ -6,19 +6,23 @@ import {StoryAreaComponent} from "./story_area_component"
 import {StoryBuilder} from "../models/story_builder";
 
 class StoryBuilderComponent extends Component<{}> {
-  private storyBuilder:StoryBuilder = new StoryBuilder();
+  private storyBuilder:StoryBuilder | undefined;
 
   public async UNSAFE_componentWillMount() {
+    this.storyBuilder = new StoryBuilder();
     await this.storyBuilder.initialize();
   }
 
   public render() {
-    return (
-      <div className="SB SB-empty-back">
-        <HelpButton/>
-        <StoryAreaComponent  myStoryArea={this.storyBuilder.storyArea}/>
-      </div>
-    );
+    if(!(this.storyBuilder && this.storyBuilder.storyArea))
+      return '';
+    else
+      return (
+        <div className="SB SB-empty-back">
+          <HelpButton/>
+          <StoryAreaComponent myStoryArea={this.storyBuilder.storyArea}/>
+        </div>
+      );
   }
 
 }

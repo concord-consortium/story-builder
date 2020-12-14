@@ -59,26 +59,29 @@ export function getNarrativeBoxInfoFromCodapState(iState: any): object {
  * Returns the ID of the text box, 0 if not found.
  */
 export async function needNarrativeTextBox(): Promise<number> {
-	let need: number = 0;
+	let need: number = -1;
 
 	const theMessage = {action: "get", resource: "componentList"};
 	const theResult: any = await codapInterface.sendRequest(theMessage)
-		.catch(() => {
-			console.log(`••• problem finding out about the component list`);
-			return need;
-		});
-
-
-	if (theResult.success) {
-		theResult.values.forEach((c: any) => {
-			if (c.name === kNarrativeTextBoxName) {
-				if (c.type === 'text') {
-					need = c.id as number;
-				}
-			}
+		.catch((e) => {
+			console.log(`••• problem finding out about the component list——`, e);
 		})
-	}
-
+		.then((iResult:any)=> {
+			if( iResult && iResult.success) {
+				console.log('success');
+				iResult.values.forEach((c: any) => {
+					if (c.name === kNarrativeTextBoxName) {
+						if (c.type === 'text') {
+							need = c.id as number;
+						}
+					}
+				})
+				return need;
+			}
+		});
 	return need;
 }
 
+export function objectIsEmpty( iObject:any) {
+	return !iObject || typeof iObject !== 'object' || Object.keys(iObject).length === 0;
+}

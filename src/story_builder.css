@@ -106,6 +106,7 @@
   width: calc(var(--moment-width) - 8px);
   resize: none;
   border: none;
+  cursor: text;
 }
 
 .SB-moment-number {

@@ -3,7 +3,7 @@ import codapInterface from "../lib/CodapInterface";
 import {Moment} from "./moment";
 import {
 	getNarrativeBoxInfoFromCodapState, kNarrativeTextBoxName,
-	needNarrativeTextBox,
+	needNarrativeTextBox, objectIsEmpty,
 	putTextComponentInfoIntoCodapState
 } from "../utilities/utilities";
 
@@ -16,8 +16,7 @@ export class StoryArea {
 	private saveStateInDstMoment = false;
 	private changeCount = 0;
 	private narrativeBoxID: number = 0;
-	private editingMomentTitle = false;       //  are we editing the title of the currentMoment in place?
-	private selectTextForEdit = false;
+	private justMadeInitialMomentAndText = false;
 	private forceUpdateCallback:Function | null = null;
 
 	constructor() {
@@ -26,6 +25,7 @@ export class StoryArea {
 		this.updateCurrentMoment = this.updateCurrentMoment.bind(this);
 		this.revertCurrentMoment = this.revertCurrentMoment.bind(this);
 		this.makeNewMoment = this.makeNewMoment.bind(this);
+		this.handleNewTitle = this.handleNewTitle.bind(this);
 		this.saveCurrentMoment = this.saveCurrentMoment.bind(this);
 		this.getPluginState = this.getPluginState.bind(this);
 		this.restorePluginState = this.restorePluginState.bind(this);
@@ -33,25 +33,25 @@ export class StoryArea {
 		codapInterface.on('notify', '*', '', this.handleNotification);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
+	}
 
+	async initialize() {
 		/**
 		 * We delay the start making the initial moment to let the text box appear;
 		 * otherwise the text box will not be in that Moment's codapState.
 		 */
-		needNarrativeTextBox().then((theID) => {
-				if (theID) {   //  there is a text box with a nonzero ID
-					console.log(`StoryArea constructor: initial text box found with ID ${theID}`);
-					this.narrativeBoxID = theID;
-
-				} else {
-					if (!this.momentsManager.startingMoment) {
-						this.makeInitialMomentAndTextComponent();
-					} else {
-						this.forceComponentUpdate();
-					}
-				}
+		let theID = await needNarrativeTextBox();
+		if (theID >= 0) {   //  there is a text box with a nonzero ID
+			console.log(`StoryArea constructor: initial text box found with ID ${theID}`);
+			this.narrativeBoxID = theID;
+		} else {
+			if (!this.momentsManager.startingMoment) {
+				await this.makeInitialMomentAndTextComponent();
+				this.justMadeInitialMomentAndText = true;
+			} else {
+				this.forceComponentUpdate();
 			}
-		)
+		}
 	}
 
 	setForceUpdateCallback( iCallback:Function) {
@@ -81,7 +81,7 @@ export class StoryArea {
 				return 0;
 			});
 
-		if (tNarrativeID) {
+		if (tNarrativeID !== -1) {
 			this.narrativeBoxID = tNarrativeID;
 			console.log(`StoryArea.makeInitialMomentAndTextComponent: Text box id ${this.narrativeBoxID} found.`);
 
@@ -232,6 +232,13 @@ export class StoryArea {
 		}
 	}
 
+	handleMomentClick(iMoment:Moment) {
+		if( iMoment) {
+			this.doBeginChangeToNewMoment(iMoment);
+			this.momentsManager.setCurrentMoment(iMoment);
+		}
+	}
+
 	/**
 	 * invoked when the user presses the "shutter" button.
 	 * We will by default store the current CODAP state
@@ -244,18 +251,24 @@ export class StoryArea {
 		this.doBeginChangeToNewMoment(null);
 	}
 
+	public handleNewTitle( iMoment:Moment, iNewTitle:string) {
+		if (iNewTitle.length > 0) {
+			iMoment.setTitle(iNewTitle);
+			this.displayNarrativeInTextBox(iMoment);
+		}
+		this.forceComponentUpdate();
+	}
+
 	doBeginChangeToNewMoment(iMoment: Moment | null) {
 
 		if (this.momentsManager.currentMoment) {
 			this.momentsManager.srcMoment = this.momentsManager.currentMoment;
 
 			if (iMoment) {  //  a destination moment already exists
-				this.editingMomentTitle = false;    //  we do not want to automatically edit one we're moving to
 				this.momentsManager.dstMoment = iMoment;
 			} else {        //  we are making a new moment
-				this.editingMomentTitle = true;    //  we do want to automatically edit the new one
-				this.selectTextForEdit = true;
 				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({});
+				this.momentsManager.dstMoment.setIsNew(true);
 				//  it is not yet the current moment
 			}
 
@@ -270,7 +283,7 @@ export class StoryArea {
 			this.saveStateInSrcMoment = false;
 			this.saveStateInDstMoment = false;
 
-			if (!this.momentsManager.srcMoment.codapState) {
+			if (objectIsEmpty(this.momentsManager.srcMoment.codapState)) {
 				//  whenever you're going from a "new" moment, you must save its state.
 				//  this is a convenience; we could ask.
 				this.saveStateInSrcMoment = true;
@@ -280,7 +293,7 @@ export class StoryArea {
 			} else if (window.confirm(qSaveChanges)) {
 				//  there have been changes, so we will save.
 				this.saveStateInSrcMoment = true;
-			} else if (!this.momentsManager.dstMoment.codapState
+			} else if (!objectIsEmpty(this.momentsManager.dstMoment.codapState)
 				&& window.confirm(qChangesStayOnScreen)) {
 				//  so we're NOT saving changes in the source, but do we want them in the destination
 				this.saveStateInDstMoment = true;
@@ -341,17 +354,7 @@ export class StoryArea {
             for [${this.momentsManager.getCurrentMomentTitle()}] in the text box`)
 			});
 
-		this.forceComponentUpdate();
-
-		//  select the text in the title edit box
-		//  the thinking is that if it's actually being edited, none of this machinery happens.
-
-		if (this.selectTextForEdit) {
-			const theEditBox: HTMLElement | null = document.getElementById("currentMomentTitleEditBox");
-			if (theEditBox instanceof HTMLTextAreaElement) {
-				theEditBox.select();
-			}
-		}
+		// this.forceComponentUpdate();
 
 		console.log(this.momentsManager.getMomentSummary());
 	}
@@ -424,13 +427,10 @@ export class StoryArea {
 
 		// console.log(`...displayNarrativeInTextBox() in moment [${momentTitleString}]: ${narrativeString}`);
 
-		const tResult: any = await codapInterface.sendRequest(theMessage)
+		await codapInterface.sendRequest(theMessage)
 			.catch(() => {
 				console.log(`••• problem updating the narrative text box`)
 			});
-		if (tResult.success) {
-			//  console.log(`...successfully updated the text box`);
-		}
 	}
 
 }

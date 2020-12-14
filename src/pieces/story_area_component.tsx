@@ -4,20 +4,21 @@ import {MomentsManager} from "../models/moments-manager";
 import {Moment} from "../models/moment";
 import {MomentComponent} from "./moment_component";
 
-export class StoryAreaComponent extends Component<{ myStoryArea:StoryArea }, {count:number}> {
+export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { count: number }> {
 
-	private myMomentsManager:MomentsManager;
+	private myMomentsManager: MomentsManager;
 
-	constructor(props:any) {
+	constructor(props: any) {
 		super(props);
 		this.state = {count: 0};
 
 		this.onMomentClick = this.onMomentClick.bind(this);
 		this.onMomentDelete = this.onMomentDelete.bind(this);
 		this.onMomentDuplicate = this.onMomentDuplicate.bind(this);
+		this.onTitleKeydown = this.onTitleKeydown.bind(this);
 		this.refresh = this.refresh.bind(this);
 
-		this.props.myStoryArea.setForceUpdateCallback( this.refresh);
+		this.props.myStoryArea.setForceUpdateCallback(this.refresh);
 		this.myMomentsManager = props.myStoryArea.momentsManager;
 	}
 
@@ -25,8 +26,8 @@ export class StoryAreaComponent extends Component<{ myStoryArea:StoryArea }, {co
 		this.setState({count: this.state.count + 1});
 	}
 
-	onMomentClick(moment:Moment) {
-		this.myMomentsManager.handleMomentClick(moment);
+	onMomentClick(moment: Moment) {
+		this.props.myStoryArea.handleMomentClick(moment);
 		this.refresh();
 	}
 
@@ -36,29 +37,36 @@ export class StoryAreaComponent extends Component<{ myStoryArea:StoryArea }, {co
 	}
 
 	onMomentDuplicate() {
-		this.myMomentsManager.duplicateCurrentMoment();
+		this.props.myStoryArea.makeNewMoment();
 		this.refresh();
+	}
+
+	onTitleKeydown() {
 	}
 
 	render() {
 		let this_ = this;
 
 		function momentsComponents() {
-			let tComponents:ReactElement[] = [];
-			this_.myMomentsManager.forEachMoment((iMoment:Moment) => {
+			let tComponents: ReactElement[] = [];
+			this_.myMomentsManager.forEachMoment((iMoment: Moment) => {
 				tComponents.push(
 					<MomentComponent key={`moment-${iMoment.ID}`}
-													 	myMoment={iMoment}
-													  isNew={iMoment.isNew()}
-														onClickCallback={this_.onMomentClick}
-														onDeleteCallback={this_.onMomentDelete}
-														onDuplicateCallback={this_.onMomentDuplicate}/>
-				)
+													 myMoment={iMoment}
+													 isNew={iMoment.isNew()}
+													 onClickCallback={this_.onMomentClick}
+													 onTitleBlurCallback={(iMoment: Moment, iNewTitle: string) => {
+														 this_.props.myStoryArea.handleNewTitle(iMoment, iNewTitle);
+													 }}
+													 onTitleKeydownCallback={this_.onTitleKeydown}
+													 onDeleteCallback={this_.onMomentDelete}
+													 onDuplicateCallback={this_.onMomentDuplicate}/>
+				);
 			});
 			return tComponents;
 		}
 
-		return(
+		return (
 			<div className='SB-story-area'>
 				{momentsComponents()}
 			</div>
