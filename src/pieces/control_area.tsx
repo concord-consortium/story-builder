@@ -7,7 +7,8 @@ import {Moment} from "../models/moment";
 
 export class ControlArea extends Component<{
 	myMoment:Moment,
-	onDuplicateCallback:any
+	onDuplicateCallback:any,
+	onSaveCallback:any
 }, any> {
 
 	constructor(props:any) {
@@ -32,7 +33,7 @@ export class ControlArea extends Component<{
 						 onClick={() => this.handleRevert()}
 						 title="Discard changes to this moment"/>
 				<img className={`SB-save-${kDefOrDis}`} alt='Save'
-						 onClick={() => this.handleSave()}
+						 onClick={this.props.onSaveCallback}
 						 title="Save this moment"/>
 				<img className={`SB-duplicate-default`} alt='Make a new moment'
 						 onClick={() => this.props.onDuplicateCallback()}

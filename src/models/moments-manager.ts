@@ -48,7 +48,7 @@ export class MomentsManager {
 		if (!(iStorage && iStorage.moments))
 			return;
 		iStorage.moments.forEach((iMomentStorage: any, iIndex: number) => {
-			let tMoment = new Moment(iIndex, iIndex);
+			let tMoment = new Moment(iIndex, iIndex + 1);
 			tMoment.restoreFromStorage(iMomentStorage);
 			if (!this_.startingMoment) {
 				this_.startingMoment = tMoment;
@@ -108,6 +108,8 @@ export class MomentsManager {
 	setCurrentMoment( iMoment:Moment | null) {
 		if(iMoment !== this.currentMoment) {
 			this.setMomentIsActive( this.currentMoment, false);
+			if( this.currentMoment)
+				this.currentMoment.setIsChanged( false);
 			this.currentMoment = iMoment;
 			this.setMomentIsActive( this.currentMoment, true);
 		}
@@ -157,6 +159,11 @@ export class MomentsManager {
 	duplicateCurrentMoment() {
 		let tNewMoment = this.makeNewMomentUsingCodapState({});
 		tNewMoment.setIsNew(true);
+	}
+
+	markCurrentMomentAsChanged( iChanged:boolean) {
+		if( this.currentMoment)
+			this.currentMoment.setIsChanged( iChanged);
 	}
 
 	/**

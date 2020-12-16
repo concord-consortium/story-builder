@@ -14,7 +14,8 @@ export class MomentComponent extends Component<{
 	onTitleKeydownCallback:any,
 	onTitleBlurCallback:any,
 	onDeleteCallback: any,
-	onDuplicateCallback: any
+	onDuplicateCallback: any,
+	onSaveCallback:any
 }, { count: number, editIsInProgress:boolean }> {
 
 	private container:any;
@@ -28,23 +29,28 @@ export class MomentComponent extends Component<{
 		this.forceUpdateCallback = this.forceUpdateCallback.bind(this);
 		props.myMoment.setForceUpdateCallback(this.forceUpdateCallback);
 		this.handleClick = this.handleClick.bind(this);
+		// this.handleClickCapture = this.handleClickCapture.bind(this);
 		this.handleDelete = this.handleDelete.bind(this);
 		this.handleTitleEditBlur = this.handleTitleEditBlur.bind(this);
 		this.handleFocus = this.handleFocus.bind(this);
 		this.handleTitleClick = this.handleTitleClick.bind(this);
 		this.handleKeyDown = this.handleKeyDown.bind(this);
+		this.handleDragStart = this.handleDragStart.bind(this);
+		this.handleDrop = this.handleDrop.bind(this);
 	}
 
 	componentDidMount() {
-		let this_ = this;
-		setTimeout(()=> {
-			this_.container.current.style.transform = 'none';
-			this_.props.myMoment.setIsNew(false);
-		}, 10);
-		setTimeout(()=> {
-			this_.container.current.classList.remove('start');
-			this_.container.current.style.transform = null;
-		}, 510);
+		if( this.props.myMoment.isNew()) {
+			let this_ = this;
+			setTimeout(() => {
+				this_.container.current.style.transform = 'none';
+				this_.props.myMoment.setIsNew(false);
+			}, 10);
+			setTimeout(() => {
+				this_.container.current.classList.remove('start');
+				this_.container.current.style.transform = null;
+			}, 510);
+		}
 	}
 
 	forceUpdateCallback() {
@@ -59,6 +65,16 @@ export class MomentComponent extends Component<{
 	handleClick() {
 		this.props.onClickCallback(this.props.myMoment);
 	}
+
+/*
+	handleClickCapture() {
+		if( !this.props.myMoment.isActive()) {
+			this.props.onClickCallback(this.props.myMoment);
+			return true;
+		}
+		else return false;
+	}
+*/
 
 	handleFocus() {
 		if( this.textArea.current)
@@ -93,6 +109,14 @@ export class MomentComponent extends Component<{
 		this.setState( {editIsInProgress: true});
 	}
 
+	handleDragStart(e:any) {
+		console.log('drag start');
+	}
+
+	handleDrop(e:any) {
+		console.log('drag start');
+	}
+
 	public render() {
 		let tIsActive = this.props.myMoment.isActive(),
 			tIsChanged = this.props.myMoment.isChanged,
@@ -106,27 +130,26 @@ export class MomentComponent extends Component<{
 				) : null,
 			tControlArea = tIsActive ? <ControlArea
 				myMoment={this.props.myMoment}
-				onDuplicateCallback = {this.props.onDuplicateCallback}/> : null,
+				onDuplicateCallback = {this.props.onDuplicateCallback}
+				onSaveCallback={this.props.onSaveCallback}/> : null,
 			tMomentClassName = `SB-moment ${tIsActive ? 'active' : ''}`,
-			tTitleArea = this.state.editIsInProgress || tIsNew ?
-				(
+			tTitleArea = (
 					<TitleEditor myMoment={ this.props.myMoment}
 											 handleBlurCallback={ this.handleTitleEditBlur}
 											 shouldSelectAll={tIsNew}>
-					</TitleEditor>
-				) : (
-					<div className={'SB-moment-title'}
-						onClick={this.handleTitleClick}>
-						<p>{this.props.myMoment.title}</p>
-					</div>
-				);
+					</TitleEditor>);
 
 		return (
 			<div
 				className={`SB-moment-container${tIsNew ? ' start' : ''}`}
-				ref={this.container}>
+				ref={this.container}
+				// onClickCapture={this.handleClickCapture}
+			>
 				<div className={tMomentClassName + (tIsChanged ? ' changed' : '')}
-						 onClick={this.handleClick}>
+						 onClick={this.handleClick}
+						 draggable
+						 onDragStartCapture={this.handleDragStart}
+						 onDropCapture={this.handleDrop}>
 					<div className='SB-moment-number'>
 						{this.props.myMoment.momentNumber}
 					</div>

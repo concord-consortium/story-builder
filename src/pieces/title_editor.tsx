@@ -12,6 +12,7 @@ export class TitleEditor extends Component<{
 },
 	any> {
 	private textArea:any;
+	private savedText:string = '';
 
 	constructor(props:any) {
 		super(props);
@@ -20,8 +21,14 @@ export class TitleEditor extends Component<{
 	}
 
 	componentDidMount() {
+		this.savedText = this.props.myMoment.title;
+		this.textArea.current.value = this.savedText;
 		if( this.props.shouldSelectAll)
 			this.textArea.current.select();
+	}
+
+	componentDidUpdate() {
+		this.componentDidMount();
 	}
 
 	handleFocus() {
@@ -32,10 +39,11 @@ export class TitleEditor extends Component<{
 		let handled = true;
 		switch(e.keyCode) {
 			case 27:    //  cancel
-				this.props.handleBlurCallback("");
+				this.textArea.current.value = this.savedText;
+				this.textArea.current.blur();
 				break;
 			case 13:    //  enter/return
-				this.props.handleBlurCallback(e.target.value);
+				this.textArea.current.blur();
 				break;
 			default:
 				handled = false;
@@ -52,14 +60,16 @@ export class TitleEditor extends Component<{
 			<textarea
 				id={"currentMomentTitleEditBox"}
 				ref={this.textArea}
+				disabled={!this.props.myMoment.isActive()}
 				className={"SB-moment-title SB-title-editor"}
 				onFocus={this.handleFocus}
 				onBlur={(e:any)=> {
 					this.props.handleBlurCallback(e.target.value);
 				}}
 				onKeyDown={this.handleKeyDown}
-				defaultValue={this.props.myMoment.title}>
-            </textarea>
+				defaultValue={this.props.myMoment.title}
+			>
+			</textarea>
 		);
 	}
 }

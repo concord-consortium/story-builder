@@ -65,6 +65,7 @@
 }
 
 .SB-moment {
+  position: relative;
   float: left;
   padding: 0 3px 3px 0;
   border-radius: 5px;
@@ -95,18 +96,21 @@
   background-color: rgba(255, 252, 55, 0.4);
 }
 
-.SB-moment-title {
-  margin-top: 3px;
-  margin-left: 3px;
-}
-
 .SB-title-editor {
   font-family: Helvetica, sans-serif;
   font-size: 12px;
-  width: calc(var(--moment-width) - 8px);
+  position: absolute;
+  left: 18px;
+  bottom: 0;
+  top: 0;
+  width: calc(var(--moment-width) - 25px);
   resize: none;
   border: none;
-  cursor: text;
+  background-color: transparent;
+}
+
+.SB-title-editor:focus {
+  background-color: white;
 }
 
 .SB-moment-number {

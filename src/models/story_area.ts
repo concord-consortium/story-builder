@@ -2,7 +2,7 @@ import {MomentsManager} from "./moments-manager";
 import codapInterface from "../lib/CodapInterface";
 import {Moment} from "./moment";
 import {
-	getNarrativeBoxInfoFromCodapState, kNarrativeTextBoxName,
+	kNarrativeTextBoxName,
 	needNarrativeTextBox, objectIsEmpty,
 	putTextComponentInfoIntoCodapState
 } from "../utilities/utilities";
@@ -46,8 +46,8 @@ export class StoryArea {
 			this.narrativeBoxID = theID;
 		} else {
 			if (!this.momentsManager.startingMoment) {
-				await this.makeInitialMomentAndTextComponent();
 				this.justMadeInitialMomentAndText = true;
+				await this.makeInitialMomentAndTextComponent();
 			} else {
 				this.forceComponentUpdate();
 			}
@@ -111,10 +111,7 @@ export class StoryArea {
 		//      at this point, `tMoment.codapState` is still null.
 
 		this.momentsManager.currentMoment = tMoment;
-		await this.displayNarrativeInTextBox(this.momentsManager.currentMoment)
-			.catch(() => {
-				console.log(`••• problem displaying the initial narrative in the text box`)
-			});
+		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
 
 		this.forceComponentUpdate();     //  make the moment appear on the screen in the bar
 	}
@@ -127,10 +124,8 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
-		if (iCommand.resource === 'undoChangeNotice') {     //  ignore all of these
-			this.changeCount++;
-			console.log(`change count: ${this.changeCount}`);
-		} else {
+		console.log(JSON.stringify(iCommand));
+		if (iCommand.resource !== 'undoChangeNotice') {
 			//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
 			if (iCommand.values.operation === 'newDocumentState') {
 				this.receiveNewDocumentState(iCommand);
@@ -141,8 +136,14 @@ export class StoryArea {
 					this.momentsManager.setNewTitle(iCommand.values.to);
 					this.forceComponentUpdate();
 				}
-			} else if (iCommand.values.operation === 'edit') {
-				console.log(`    edit notification! edit ${JSON.stringify(iCommand.values)}`);
+			} else if (iCommand.values.operation === 'commitEdit' &&
+				iCommand.values.id === this.narrativeBoxID) {
+				this.momentsManager.setNewNarrative(iCommand.values.text);
+			} else if (!(this.justMadeInitialMomentAndText || this.restoreInProgress)) {
+				this.momentsManager.markCurrentMomentAsChanged(true);
+				this.changeCount++;
+			} else {
+				this.justMadeInitialMomentAndText = false;
 			}
 		}
 	}
@@ -185,7 +186,8 @@ export class StoryArea {
 	}
 
 	restorePluginState(iState:any) {
-
+		this.momentsManager.restoreFromStorage(iState);
+		this.forceComponentUpdate();
 	}
 
 	getPluginState(): any {
@@ -221,10 +223,10 @@ export class StoryArea {
 			console.log(`received a document state we were waiting for`);
 
 			if (this.saveStateInSrcMoment) {
-				this.matchMomentToCODAPState(this.momentsManager.srcMoment, iCommand.values.state, false);
+				StoryArea.matchMomentToCODAPState(this.momentsManager.srcMoment, iCommand.values.state, false);
 			}
 			if (this.saveStateInDstMoment) {
-				this.matchMomentToCODAPState(this.momentsManager.dstMoment, iCommand.values.state, true);
+				StoryArea.matchMomentToCODAPState(this.momentsManager.dstMoment, iCommand.values.state, true);
 			}
 			this.doEndChangeToNewMoment();
 		} else {
@@ -232,10 +234,11 @@ export class StoryArea {
 		}
 	}
 
-	handleMomentClick(iMoment:Moment) {
+	async handleMomentClick(iMoment:Moment) {
 		if( iMoment) {
 			this.doBeginChangeToNewMoment(iMoment);
 			this.momentsManager.setCurrentMoment(iMoment);
+			await StoryArea.displayNarrativeAndTitleInTextBox(iMoment);
 		}
 	}
 
@@ -251,10 +254,10 @@ export class StoryArea {
 		this.doBeginChangeToNewMoment(null);
 	}
 
-	public handleNewTitle( iMoment:Moment, iNewTitle:string) {
+	public async handleNewTitle( iMoment:Moment, iNewTitle:string) {
 		if (iNewTitle.length > 0) {
 			iMoment.setTitle(iNewTitle);
-			this.displayNarrativeInTextBox(iMoment);
+			await StoryArea.displayTitleInTextBox(iMoment);
 		}
 		this.forceComponentUpdate();
 	}
@@ -316,26 +319,19 @@ export class StoryArea {
 	 *                              be stored in the codapState as part of the text component?
 	 *
 	 */
-	private async matchMomentToCODAPState(iMoment: Moment | null, iState: object, preserveMomentInfo: boolean): Promise<void> {
-		const tTextBoxInfo: any = getNarrativeBoxInfoFromCodapState(iState);
+	private static async matchMomentToCODAPState(iMoment: Moment | null, iState: object, preserveMomentInfo: boolean): Promise<void> {
 		if (iMoment instanceof Moment) {
-			console.log(`Setting [${iMoment.title}] to match a state (text comp title is [${tTextBoxInfo.title}])...`);
-			//          \n    before update: ${iMoment.toString()}`)
+			console.log(`Setting [${iMoment.title}] to match a state`);
 			iMoment.setCodapState(iState);
 			iMoment.modified = new Date();
+			iMoment.setIsChanged(false);	// because we've saved state
 
 			if (preserveMomentInfo) {
 				putTextComponentInfoIntoCodapState({
 					title: iMoment.title,
 					narrative: iMoment.narrative
 				}, iMoment.codapState);
-			} else {
-				iMoment.setTitle(tTextBoxInfo.title);
-				iMoment.setNarrative(tTextBoxInfo.narrative);
 			}
-			//  after-update console log used to be here
-		} else {
-			console.log(`Hmmm. Tried to update a non-Moment in updateMoment(): ${JSON.stringify(iMoment)}`)
 		}
 	}
 
@@ -348,11 +344,7 @@ export class StoryArea {
 				console.log(`••• problem matching the codap state 
             to [${this.momentsManager.getCurrentMomentTitle()}]`)
 			});
-		await this.displayNarrativeInTextBox(this.momentsManager.currentMoment)
-			.catch(() => {
-				console.log(`••• problem diaplaying the narrative 
-            for [${this.momentsManager.getCurrentMomentTitle()}] in the text box`)
-			});
+		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
 
 		// this.forceComponentUpdate();
 
@@ -399,24 +391,26 @@ export class StoryArea {
 		//  this.forceComponentUpdate();     //  in case there's any change
 	}
 
+	private static async displayNarrativeAndTitleInTextBox( iMoment:Moment | null) {
+		await StoryArea.displayNarrativeInTextBox(iMoment);
+		await StoryArea.displayTitleInTextBox(iMoment);
+	}
+
 	/**
 	 * Given a Moment, display its narrative in the narrative text box
 	 * @param iMoment
 	 */
-	private async displayNarrativeInTextBox(iMoment: Moment | null): Promise<void> {
-		let momentTitleString, narrativeString;
+	private static async displayTitleInTextBox(iMoment: Moment | null): Promise<void> {
+		let momentTitleString;
 		if (iMoment) {
 			momentTitleString = iMoment.title;
-			narrativeString = iMoment.narrative;
 		} else {
 			momentTitleString = "No moments!";
-			narrativeString = "Press the shutter to save a Moment in the Story Builder.";
 		}
 		const textBoxObject = {
 			type: "text",
 			name: kNarrativeTextBoxName,
-			title: momentTitleString,
-			text: narrativeString,
+			title: momentTitleString
 		};
 
 		const theMessage = {
@@ -425,7 +419,34 @@ export class StoryArea {
 			values: textBoxObject
 		};
 
-		// console.log(`...displayNarrativeInTextBox() in moment [${momentTitleString}]: ${narrativeString}`);
+		await codapInterface.sendRequest(theMessage)
+			.catch(() => {
+				console.log(`••• problem updating the narrative text box`)
+			});
+	}
+
+	/**
+	 * Given a Moment, display its narrative in the narrative text box
+	 * @param iMoment
+	 */
+	private static async displayNarrativeInTextBox(iMoment: Moment | null): Promise<void> {
+		let narrativeString;
+		if (iMoment) {
+			narrativeString = iMoment.narrative;
+		} else {
+			narrativeString = "Press the shutter to save a Moment in the Story Builder.";
+		}
+		const textBoxObject = {
+			type: "text",
+			name: kNarrativeTextBoxName,
+			text: narrativeString,
+		};
+
+		const theMessage = {
+			action: "update",
+			resource: "component[" + kNarrativeTextBoxName + "]",
+			values: textBoxObject
+		};
 
 		await codapInterface.sendRequest(theMessage)
 			.catch(() => {

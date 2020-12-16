@@ -60,7 +60,8 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 													 }}
 													 onTitleKeydownCallback={this_.onTitleKeydown}
 													 onDeleteCallback={this_.onMomentDelete}
-													 onDuplicateCallback={this_.onMomentDuplicate}/>
+													 onDuplicateCallback={this_.onMomentDuplicate}
+													 onSaveCallback={this_.props.myStoryArea.saveCurrentMoment}/>
 				);
 			});
 			return tComponents;

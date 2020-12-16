@@ -72,6 +72,13 @@ export class Moment {
 		}
 	}
 
+	setIsChanged( iIsChanged:boolean) {
+		if( iIsChanged !== this.isChanged) {
+			this.isChanged = iIsChanged;
+			this.callForceUpdate();
+		}
+	}
+
 	toString(): string {
 		return `ID: ${this.ID} title: [${this.title}] narrative: ${this.extractNarrative()}`;
 	}
@@ -83,7 +90,6 @@ export class Moment {
 	setTitle(iTitle: string) {
 		if( iTitle !== this.title) {
 			this.title = iTitle;
-			this.isChanged = true;
 			this.callForceUpdate();
 		}
 	}
