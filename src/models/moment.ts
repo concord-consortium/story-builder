@@ -12,24 +12,24 @@ export class Moment {
 	public created: Date = new Date();
 	public modified: Date = new Date();
 	public narrative: any = "";
-	private isNewMoment:boolean = false;
+	private isNewMoment: boolean = false;
 	private myState = 'inactive';	// 'inactive' | 'active
-	public isChanged = false;
-	private forceUpdateCallback:(()=>void) | null = null;
+	private amIChanged = false;
+	private forceUpdateCallback: (() => void) | null = null;
 
-	constructor( iID:number, iMomentNumber:number, iState?:string) {
+	constructor(iID: number, iMomentNumber: number, iState?: string) {
 		this.ID = iID;
 		this.momentNumber = iMomentNumber;
-		if( iState)
+		if (iState)
 			this.myState = iState;
 	}
 
-	setForceUpdateCallback( iCallback:()=>void) {
+	setForceUpdateCallback(iCallback: () => void) {
 		this.forceUpdateCallback = iCallback;
 	}
 
 	callForceUpdate() {
-		if(this.forceUpdateCallback) {
+		if (this.forceUpdateCallback) {
 			this.forceUpdateCallback();
 		}
 	}
@@ -53,28 +53,32 @@ export class Moment {
 
 	}
 
-	isNew():boolean {
+	isNew(): boolean {
 		return this.isNewMoment;
 	}
 
-	setIsNew( iIsNew:boolean) {
+	setIsNew(iIsNew: boolean) {
 		this.isNewMoment = iIsNew;
 	}
 
-	isActive():boolean {
+	isActive(): boolean {
 		return this.myState === 'active';
 	}
 
-	setIsActive( iActive:boolean) {
+	setIsActive(iActive: boolean) {
 		this.myState = iActive ? 'active' : 'inactive';
-		if( !iActive) {
-			this.isChanged = false;
+		if (!iActive) {
+			this.amIChanged = false;
 		}
 	}
 
-	setIsChanged( iIsChanged:boolean) {
-		if( iIsChanged !== this.isChanged) {
-			this.isChanged = iIsChanged;
+	isChanged() {
+		return this.amIChanged;
+	}
+
+	setIsChanged(iIsChanged: boolean) {
+		if (iIsChanged !== this.amIChanged) {
+			this.amIChanged = iIsChanged;
 			this.callForceUpdate();
 		}
 	}
@@ -88,7 +92,7 @@ export class Moment {
 	}
 
 	setTitle(iTitle: string) {
-		if( iTitle !== this.title) {
+		if (iTitle !== this.title) {
 			this.title = iTitle;
 			this.callForceUpdate();
 		}

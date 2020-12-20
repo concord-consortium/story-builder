@@ -10,7 +10,6 @@ export class MomentsManager {
 	public srcMoment: Moment | null = null;
 	public startingMoment: Moment | null = null;
 	private nextMomentID: number = 0;
-	private momentBeingDragged: Moment | null = null;
 	private kInitialJSONText = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"What did you do? Why did you do it?"}]},{"type":"paragraph","children":[{"text":"¿Qué hizo? ¿Por qué?"}]}],"objTypes":{"paragraph":"block"}}}`;
 	private kInitialJSONText_start = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"This is the beginning of your data story."}]},{"type":"paragraph","children":[{"text":"Esto es el comienzo de su cuento de datos."}]}],"objTypes":{"paragraph":"block"}}}`;
 
@@ -85,6 +84,15 @@ export class MomentsManager {
 		return tCount;
 	}
 
+	getMomentByID( iID:number):Moment | null {
+		let tMoment = null;
+		this.forEachMoment( (iMoment:Moment) => {
+			if( iMoment.ID === iID)
+				tMoment = iMoment;
+		})
+		return tMoment;
+	}
+
 	renumberMoments() {
 		this.forEachMoment((iMoment:Moment, iIndex:number)=>{
 			iMoment.momentNumber = iIndex + 1;	// 1-based
@@ -126,7 +134,7 @@ export class MomentsManager {
 	 *
 	 * @param iMoment
 	 */
-	deleteMoment(iMoment: Moment | null) {
+	removeMoment(iMoment: Moment | null) {
 		if (iMoment) {
 			const predecessor = iMoment.prev;
 			const successor = iMoment.next;
@@ -152,7 +160,7 @@ export class MomentsManager {
 	}
 
 	deleteCurrentMoment() {
-		this.deleteMoment(this.currentMoment);
+		this.removeMoment(this.currentMoment);
 		this.setMomentIsActive( this.currentMoment, true);
 	}
 
@@ -167,33 +175,44 @@ export class MomentsManager {
 	}
 
 	/**
+	 * Move momentToMove to a new position in the list after insertAfterMoment
+	 * @param momentToMove
+	 * @param insertAfterMoment
+	 */
+	moveMomentToPositionAfter( momentToMove:Moment | null, insertAfterMoment:Moment | null) {
+		if(!momentToMove || momentToMove === insertAfterMoment)
+			return;
+		this.removeMoment(momentToMove);
+		this.insertMomentAfterMoment(momentToMove, insertAfterMoment);
+	}
+
+	/**
 	 * Alter the moments list, inserting the given moment after the given moment
 	 * (if it's going to the beginning, the given moment will be null)
-	 * @param newMoment    moment to insert
-	 * @param previousMoment  moment after which to insert it.
+	 * @param momentToInsert    moment to insert, assumed not to currently be in list
+	 * @param insertAfterMoment  moment after which to insert it.
 	 */
-	insertMomentAfterMoment(newMoment: Moment, previousMoment: Moment | null):Moment {
+	insertMomentAfterMoment(momentToInsert: Moment, insertAfterMoment: Moment | null) {
 		let subsequentMoment;
 
-		if (previousMoment) {
-			subsequentMoment = previousMoment.next;
-			newMoment.prev = previousMoment;
-			newMoment.next = subsequentMoment; //  null if at the end
-			previousMoment.next = newMoment;
+		if (insertAfterMoment) {
+			subsequentMoment = insertAfterMoment.next;
+			momentToInsert.prev = insertAfterMoment;
+			momentToInsert.next = subsequentMoment; //  null if at the end
+			insertAfterMoment.next = momentToInsert;
 		} else {
 			//   there are no moments in the list, e.g., at initialization
 			//  or we're moving this moment to the beginning of the list, so
-			//  previousMoment is null.
-			newMoment.next = this.startingMoment;  //  which is null if the list is empty
-			this.startingMoment = newMoment;
-			newMoment.prev = null;
-			subsequentMoment = newMoment.next;
+			//  insertAfterMoment is null.
+			momentToInsert.next = this.startingMoment;  //  which is null if the list is empty
+			this.startingMoment = momentToInsert;
+			momentToInsert.prev = null;
+			subsequentMoment = momentToInsert.next;
 		}
 		if (subsequentMoment) {
-			subsequentMoment.prev = newMoment;
+			subsequentMoment.prev = momentToInsert;
 		}
 		this.renumberMoments();
-		return newMoment;
 	}
 
 	/**

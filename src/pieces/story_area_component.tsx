@@ -7,6 +7,8 @@ import {MomentComponent} from "./moment_component";
 export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { count: number }> {
 
 	private myMomentsManager: MomentsManager;
+	private placementIndicator:any;
+	private dragState:{ momentOver:Moment | null, indicatorX: number | null, insertionDirection:string}
 
 	constructor(props: any) {
 		super(props);
@@ -17,9 +19,14 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 		this.onMomentDuplicate = this.onMomentDuplicate.bind(this);
 		this.onTitleKeydown = this.onTitleKeydown.bind(this);
 		this.refresh = this.refresh.bind(this);
+		this.handleDragOver = this.handleDragOver.bind(this);
+		this.setInfoOfMomentBeingDraggedOver = this.setInfoOfMomentBeingDraggedOver.bind(this);
+		this.handleDrop = this.handleDrop.bind(this);
 
 		this.props.myStoryArea.setForceUpdateCallback(this.refresh);
 		this.myMomentsManager = props.myStoryArea.momentsManager;
+		this.placementIndicator = React.createRef();
+		this.dragState = { momentOver: null, indicatorX: null, insertionDirection: ''}
 	}
 
 	refresh() {
@@ -44,8 +51,44 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 	onTitleKeydown() {
 	}
 
+	handleDragOver(e:any) {
+		this.placementIndicator.current.style.left = `${this.dragState.indicatorX}px`;
+		e.preventDefault();	// So that we'll get the drop event
+	}
+
+	handleDrop(e:any) {
+		let tIDOfMomentBeingDragged = Number(e.dataTransfer.getData('text')),
+				tMomentBeingDragged = this.myMomentsManager.getMomentByID( tIDOfMomentBeingDragged),
+				tMomentOver = this.dragState.momentOver,
+				tDirection = this.dragState.insertionDirection,
+				tInserAfterMoment:Moment | null;
+		if( !(tMomentBeingDragged && tMomentOver))
+			return;
+		tInserAfterMoment = (tDirection === 'before') ? tMomentOver.prev : tMomentOver;
+		this.myMomentsManager.moveMomentToPositionAfter( tMomentBeingDragged, tInserAfterMoment);
+		this.placementIndicator.current.style.left = null;
+		this.myMomentsManager.setCurrentMoment(tMomentBeingDragged);
+		this.refresh();
+	}
+
+	/**
+	 *
+	 * @param iMomentOver {Moment} the moment the mouse is over
+	 * @param iIndicatorX {number} where the indicator should be displayed
+	 * @param iInsertion {string} 'before' or 'after'
+	 */
+	setInfoOfMomentBeingDraggedOver(iMomentOver:Moment, iIndicatorX:number, iInsertion:string) {
+		this.dragState = { momentOver: iMomentOver, indicatorX: iIndicatorX, insertionDirection: iInsertion};
+	}
+
 	render() {
-		let this_ = this;
+		let this_ = this,
+			tPlacementIndicator = (
+				<div
+					className='SB-placement'
+					ref={this.placementIndicator}
+				></div>
+			);
 
 		function momentsComponents() {
 			let tComponents: ReactElement[] = [];
@@ -61,15 +104,20 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 													 onTitleKeydownCallback={this_.onTitleKeydown}
 													 onDeleteCallback={this_.onMomentDelete}
 													 onDuplicateCallback={this_.onMomentDuplicate}
-													 onSaveCallback={this_.props.myStoryArea.saveCurrentMoment}/>
+													 onSaveCallback={this_.props.myStoryArea.saveCurrentMoment}
+													 onRevertCallback={this_.props.myStoryArea.revertCurrentMoment}
+														onDragOverCallback={this_.setInfoOfMomentBeingDraggedOver}/>
 				);
 			});
 			return tComponents;
 		}
 
 		return (
-			<div className='SB-story-area'>
+			<div className='SB-story-area'
+			onDragOver={this.handleDragOver}
+			onDrop={this.handleDrop}>
 				{momentsComponents()}
+				{tPlacementIndicator}
 			</div>
 		);
 	}

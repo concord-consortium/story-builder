@@ -8,29 +8,25 @@ import {Moment} from "../models/moment";
 export class ControlArea extends Component<{
 	myMoment:Moment,
 	onDuplicateCallback:any,
-	onSaveCallback:any
+	onSaveCallback:any,
+	onRevertCallback:any
 }, any> {
 
 	constructor(props:any) {
 		super(props);
 		this.handleRevert = this.handleRevert.bind(this);
-		this.handleSave = this.handleSave.bind(this);
 	}
 
 	handleRevert() {
-
-	}
-
-	handleSave() {
-
+		this.props.onRevertCallback();
 	}
 
 	render() {
-		const kDefOrDis = this.props.myMoment.isChanged ? 'default' : 'disabled';
+		const kDefOrDis = this.props.myMoment.isChanged() ? 'default' : 'disabled';
 		return (
 			<div className='SB-control-area'>
 				<img className={`SB-revert-${kDefOrDis}`} alt='Discard changes'
-						 onClick={() => this.handleRevert()}
+						 onClick={this.props.onRevertCallback}
 						 title="Discard changes to this moment"/>
 				<img className={`SB-save-${kDefOrDis}`} alt='Save'
 						 onClick={this.props.onSaveCallback}

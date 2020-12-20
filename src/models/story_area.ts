@@ -124,7 +124,7 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
-		console.log(JSON.stringify(iCommand));
+		// console.log(JSON.stringify(iCommand));
 		if (iCommand.resource !== 'undoChangeNotice') {
 			//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
 			if (iCommand.values.operation === 'newDocumentState') {
@@ -209,7 +209,7 @@ export class StoryArea {
 	private requestDocumentState(): void {
 		this.waitingForDocumentState = true;
 		codapInterface.sendRequest({action: 'get', resource: 'document'});
-		console.log(`Requesting a document state, currentMoment is [${this.momentsManager.getCurrentMomentTitle()}]`)
+		// console.log(`Requesting a document state, currentMoment is [${this.momentsManager.getCurrentMomentTitle()}]`)
 	}
 
 	/**
@@ -220,7 +220,7 @@ export class StoryArea {
 	private receiveNewDocumentState(iCommand: any): void {
 		if (this.waitingForDocumentState) {
 			this.waitingForDocumentState = false;
-			console.log(`received a document state we were waiting for`);
+			// console.log(`received a document state we were waiting for`);
 
 			if (this.saveStateInSrcMoment) {
 				StoryArea.matchMomentToCODAPState(this.momentsManager.srcMoment, iCommand.values.state, false);
@@ -321,7 +321,7 @@ export class StoryArea {
 	 */
 	private static async matchMomentToCODAPState(iMoment: Moment | null, iState: object, preserveMomentInfo: boolean): Promise<void> {
 		if (iMoment instanceof Moment) {
-			console.log(`Setting [${iMoment.title}] to match a state`);
+			// console.log(`Setting [${iMoment.title}] to match a state`);
 			iMoment.setCodapState(iState);
 			iMoment.modified = new Date();
 			iMoment.setIsChanged(false);	// because we've saved state
@@ -348,7 +348,7 @@ export class StoryArea {
 
 		// this.forceComponentUpdate();
 
-		console.log(this.momentsManager.getMomentSummary());
+		// console.log(this.momentsManager.getMomentSummary());
 	}
 
 	saveCurrentMoment() {
@@ -356,7 +356,7 @@ export class StoryArea {
 			this.momentsManager.srcMoment = this.momentsManager.dstMoment = this.momentsManager.currentMoment;
 			this.saveStateInSrcMoment = true;
 			this.requestDocumentState();
-			console.log(`Explicitly saved [${this.momentsManager.currentMoment.title}] in saveCurrentMoment`);
+			// console.log(`Explicitly saved [${this.momentsManager.currentMoment.title}] in saveCurrentMoment`);
 		} else {
 			alert(`Hmmm. There is no current moment to save`);
 		}
@@ -364,7 +364,7 @@ export class StoryArea {
 
 	private deleteCurrentMoment(): void {
 		this.momentsManager.deleteCurrentMoment();    //  also sets a new currentMoment
-		console.log(`moment removed from momentsManager; ready to match to new current moment`);
+		// console.log(`moment removed from momentsManager; ready to match to new current moment`);
 		this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
 	}
 
@@ -385,10 +385,12 @@ export class StoryArea {
 	/**
 	 * Make CODAP revert to the last-saved state associated with the currentMoment.
 	 */
-	private revertCurrentMoment(): void {
-		this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
-
-		//  this.forceComponentUpdate();     //  in case there's any change
+	public revertCurrentMoment(): void {
+		let tCurrentMoment = this.momentsManager.currentMoment;
+		if( tCurrentMoment) {
+			this.matchCODAPStateToMoment(tCurrentMoment);
+			tCurrentMoment.setIsChanged(false);
+		}
 	}
 
 	private static async displayNarrativeAndTitleInTextBox( iMoment:Moment | null) {

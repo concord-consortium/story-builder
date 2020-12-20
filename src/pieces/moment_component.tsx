@@ -3,23 +3,29 @@ import {Moment} from "../models/moment";
 import {ControlArea} from "./control_area";
 import {TitleEditor} from "./title_editor";
 
+interface MomentProps {
+	myMoment: Moment,
+	isNew: boolean,
+	onClickCallback: any,
+	onTitleKeydownCallback: any,
+	onTitleBlurCallback: any,
+	onDeleteCallback: any,
+	onDuplicateCallback: any,
+	onSaveCallback: any,
+	onRevertCallback: any,
+	onDragOverCallback: any
+}
+
+interface MomentState { count: number, editIsInProgress: boolean }
+
 /**
  * Objects of this class are responsible for displaying a Moment with which the user can interact.
  **/
 
-export class MomentComponent extends Component<{
-	myMoment: Moment,
-	isNew:boolean,
-	onClickCallback:any,
-	onTitleKeydownCallback:any,
-	onTitleBlurCallback:any,
-	onDeleteCallback: any,
-	onDuplicateCallback: any,
-	onSaveCallback:any
-}, { count: number, editIsInProgress:boolean }> {
+export class MomentComponent extends Component<MomentProps, MomentState> {
 
-	private container:any;
-	private textArea:any;
+	private container: any;
+	private textArea: any;
 
 	constructor(props: any) {
 		super(props);
@@ -36,11 +42,46 @@ export class MomentComponent extends Component<{
 		this.handleTitleClick = this.handleTitleClick.bind(this);
 		this.handleKeyDown = this.handleKeyDown.bind(this);
 		this.handleDragStart = this.handleDragStart.bind(this);
-		this.handleDrop = this.handleDrop.bind(this);
+		this.handleDragOver = this.handleDragOver.bind(this);
+	}
+
+	componentDidUpdate(prevProps: Readonly<MomentProps>,
+										 prevState: Readonly<MomentState>,
+										 prevLeftEdge?: any) {
+		if(prevLeftEdge !== null) {
+			const kDeltaT = 500;
+			let tContainer = this.container.current,
+					tNewLeftEdge = tContainer.getBoundingClientRect().x;
+			if( prevLeftEdge !== tNewLeftEdge) {
+				const tDelta = prevLeftEdge - tNewLeftEdge;
+				tContainer.setAttribute('style',
+					`transform: translateX(${tDelta}px);
+				`);
+				setTimeout( ()=>{
+					tContainer.setAttribute('style',
+						`transition: transform ${kDeltaT}ms;
+					transform: none;
+				`);
+				}, 10);
+				setTimeout( ()=>{
+					tContainer.setAttribute('style',
+						`transform: null;
+				`);
+				}, kDeltaT + 10);
+			}
+		}
+	}
+
+	getSnapshotBeforeUpdate(prevProps: Readonly<MomentProps>, prevState: Readonly<MomentState>): any | null {
+		let tLeftEdge:any | null;
+		if (this.container) {
+			tLeftEdge = this.container.current.getBoundingClientRect().x;
+		}
+		return tLeftEdge;
 	}
 
 	componentDidMount() {
-		if( this.props.myMoment.isNew()) {
+		if (this.props.myMoment.isNew()) {
 			let this_ = this;
 			setTimeout(() => {
 				this_.container.current.style.transform = 'none';
@@ -57,7 +98,7 @@ export class MomentComponent extends Component<{
 		this.setState({count: this.state.count + 1});
 	}
 
-	handleDelete(e:any) {
+	handleDelete(e: any) {
 		this.props.onDeleteCallback();
 		e.stopPropagation();
 	}
@@ -66,29 +107,19 @@ export class MomentComponent extends Component<{
 		this.props.onClickCallback(this.props.myMoment);
 	}
 
-/*
-	handleClickCapture() {
-		if( !this.props.myMoment.isActive()) {
-			this.props.onClickCallback(this.props.myMoment);
-			return true;
-		}
-		else return false;
-	}
-*/
-
 	handleFocus() {
-		if( this.textArea.current)
+		if (this.textArea.current)
 			this.textArea.current.select();
 	}
 
-	handleTitleEditBlur(iTitle:string) {
+	handleTitleEditBlur(iTitle: string) {
 		this.props.onTitleBlurCallback(this.props.myMoment, iTitle);
 		this.setState({editIsInProgress: false});
 	}
 
-	handleKeyDown(e:any) {
+	handleKeyDown(e: any) {
 		let handled = true;
-		switch(e.keyCode) {
+		switch (e.keyCode) {
 			case 27:    //  cancel
 				this.handleTitleEditBlur("");
 				break;
@@ -106,50 +137,59 @@ export class MomentComponent extends Component<{
 	}
 
 	handleTitleClick() {
-		this.setState( {editIsInProgress: true});
+		this.setState({editIsInProgress: true});
 	}
 
-	handleDragStart(e:any) {
-		console.log('drag start');
+	handleDragStart(e: any) {
+		e.dataTransfer.setData('text/plain', this.props.myMoment.ID);
 	}
 
-	handleDrop(e:any) {
-		console.log('drag start');
+	handleDragOver(e: any) {
+		let tMouseX = e.clientX,
+				tRect = e.currentTarget.getBoundingClientRect(),
+				tleft = tRect.left,
+				tMiddle = tleft + tRect.width / 2,
+				tSide = tMouseX < tMiddle ? 'before' : 'after',
+				tOffset = tSide === 'before' ?
+					(this.props.myMoment.momentNumber === 1 ? -5 : -10) : 5,
+				tIndicatorX = tMouseX < tMiddle ? tleft + tOffset : tleft + tRect.width + tOffset;
+		this.props.onDragOverCallback( this.props.myMoment, tIndicatorX, tSide);
 	}
 
 	public render() {
 		let tIsActive = this.props.myMoment.isActive(),
-			tIsChanged = this.props.myMoment.isChanged,
+			tIsChanged = this.props.myMoment.isChanged(),
 			tIsNew = this.props.isNew,
 			tDeleteButton = tIsActive ?
 				(<div className='SB-delete-area'>
 						<img className={`SB-delete-default`} alt='Delete this moment'
 								 onClick={this.handleDelete}
-									title="Delete this moment"/>
+								 title="Delete this moment"/>
 					</div>
 				) : null,
 			tControlArea = tIsActive ? <ControlArea
 				myMoment={this.props.myMoment}
-				onDuplicateCallback = {this.props.onDuplicateCallback}
-				onSaveCallback={this.props.onSaveCallback}/> : null,
+				onDuplicateCallback={this.props.onDuplicateCallback}
+				onSaveCallback={this.props.onSaveCallback}
+				onRevertCallback={this.props.onRevertCallback}/> : null,
 			tMomentClassName = `SB-moment ${tIsActive ? 'active' : ''}`,
 			tTitleArea = (
-					<TitleEditor myMoment={ this.props.myMoment}
-											 handleBlurCallback={ this.handleTitleEditBlur}
-											 shouldSelectAll={tIsNew}>
-					</TitleEditor>);
+				<TitleEditor myMoment={this.props.myMoment}
+										 handleBlurCallback={this.handleTitleEditBlur}
+										 shouldSelectAll={tIsNew}>
+				</TitleEditor>);
 
 		return (
 			<div
 				className={`SB-moment-container${tIsNew ? ' start' : ''}`}
 				ref={this.container}
-				// onClickCapture={this.handleClickCapture}
+				onDragOver={this.handleDragOver}
 			>
 				<div className={tMomentClassName + (tIsChanged ? ' changed' : '')}
 						 onClick={this.handleClick}
 						 draggable
 						 onDragStartCapture={this.handleDragStart}
-						 onDropCapture={this.handleDrop}>
+				>
 					<div className='SB-moment-number'>
 						{this.props.myMoment.momentNumber}
 					</div>
