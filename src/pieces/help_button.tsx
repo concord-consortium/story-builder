@@ -13,6 +13,7 @@ export function HelpButton() {
 		<div className='SB-button'
 				 style={{right: 0} }>
 			<img className= 'SB-help-default' alt='get help'
+					 title='Get some help about how to use Story Builder'
 					 onClick={( ) => handleGetHelp()}/>
 		</div>
 	)

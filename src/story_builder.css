@@ -13,7 +13,7 @@
 }
 
 .SB div {
-  /*margin: 0;*/
+  overflow: hidden;
 }
 
 .SB-empty-back {
@@ -39,11 +39,21 @@
 }
 
 .SB-story-area {
+  display: inline-block;
+  padding: 5px 12px 5px 5px;
   height: 100%;
   margin: 0;
-  padding: 5px;
   border-radius: 6px;
   background-color: #ffffff;
+}
+
+.SB-cover-sheet {
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  background-color: #00000022;
+  cursor: default;
+  z-index: 3;
 }
 
 .SB-moment-container {
@@ -205,4 +215,55 @@
   border: solid 3px yellow;
   background-color: var(--teal-dark);
   left: -100px;
+}
+
+.SB-dialog {
+  position: absolute;
+  z-index: 4;
+  height: 75%;
+  width: 295px;
+  border: solid 2px var(--teal-dark);
+  background-color: #fffed7;
+  top: 5px;
+  right: 35px;
+  padding: 5px;
+  border-radius: 6px;
+  box-shadow: 2px 2px #3c3c3c;
+}
+
+.SB-button-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 5px;
+  margin-top: 4px;
+}
+
+.SB-dialog p {
+  margin-block: 0;
+}
+
+.SB-dialog-button {
+  padding: 4px;
+  font-size: 11px;
+  text-align: center;
+  background-color: white;
+  border: 1px solid var(--teal-dark);
+  border-radius: 10px;
+  cursor: pointer;
+  bottom: 0;
+}
+
+.SB-dialog-button:last-child {
+  font-weight: bold;
+  border: 2px solid var(--teal-dark);
+  background-color: rgba(114, 191, 202, 0.5);
+}
+
+.SB-dialog-button:hover {
+  background-color: #e3f2f4;
+}
+
+.SB-dialog-button:last-child:hover {
+  background-color: var(--teal-dark);
+  color: white;
 }

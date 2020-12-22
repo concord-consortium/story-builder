@@ -5,7 +5,6 @@ import {TitleEditor} from "./title_editor";
 
 interface MomentProps {
 	myMoment: Moment,
-	isNew: boolean,
 	onClickCallback: any,
 	onTitleKeydownCallback: any,
 	onTitleBlurCallback: any,
@@ -159,7 +158,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 	public render() {
 		let tIsActive = this.props.myMoment.isActive(),
 			tIsChanged = this.props.myMoment.isChanged(),
-			tIsNew = this.props.isNew,
+			tIsNew = this.props.myMoment.isNew(),
 			tDeleteButton = tIsActive ?
 				(<div className='SB-delete-area'>
 						<img className={`SB-delete-default`} alt='Delete this moment'

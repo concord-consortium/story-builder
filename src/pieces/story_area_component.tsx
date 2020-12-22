@@ -3,8 +3,10 @@ import {StoryArea} from "../models/story_area";
 import {MomentsManager} from "../models/moments-manager";
 import {Moment} from "../models/moment";
 import {MomentComponent} from "./moment_component";
+import {Dialog} from "./dialog";
 
-export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { count: number }> {
+export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
+	{ mode:string, count: number, dialogState:any | null }> {
 
 	private myMomentsManager: MomentsManager;
 	private placementIndicator:any;
@@ -12,7 +14,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 
 	constructor(props: any) {
 		super(props);
-		this.state = {count: 0};
+		this.state = {mode: 'normal', count: 0, dialogState: null };
 
 		this.onMomentClick = this.onMomentClick.bind(this);
 		this.onMomentDelete = this.onMomentDelete.bind(this);
@@ -21,12 +23,15 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 		this.refresh = this.refresh.bind(this);
 		this.handleDragOver = this.handleDragOver.bind(this);
 		this.setInfoOfMomentBeingDraggedOver = this.setInfoOfMomentBeingDraggedOver.bind(this);
+		this.onStoryAreaPing = this.onStoryAreaPing.bind(this);
 		this.handleDrop = this.handleDrop.bind(this);
 
 		this.props.myStoryArea.setForceUpdateCallback(this.refresh);
 		this.myMomentsManager = props.myStoryArea.momentsManager;
 		this.placementIndicator = React.createRef();
 		this.dragState = { momentOver: null, indicatorX: null, insertionDirection: ''}
+
+		this.props.myStoryArea.setPingCallback( this.onStoryAreaPing)
 	}
 
 	refresh() {
@@ -49,6 +54,14 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 	}
 
 	onTitleKeydown() {
+	}
+
+	onStoryAreaPing( iDialogState:any) {
+		if( !iDialogState)
+			this.setState({mode: 'normal'});
+		else {
+			this.setState( { mode: 'dialog', dialogState: iDialogState});
+		}
 	}
 
 	handleDragOver(e:any) {
@@ -87,7 +100,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 				<div
 					className='SB-placement'
 					ref={this.placementIndicator}
-				></div>
+				> </div>
 			);
 
 		function momentsComponents() {
@@ -96,7 +109,6 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 				tComponents.push(
 					<MomentComponent key={`moment-${iMoment.ID}`}
 													 myMoment={iMoment}
-													 isNew={iMoment.isNew()}
 													 onClickCallback={this_.onMomentClick}
 													 onTitleBlurCallback={(iMoment: Moment, iNewTitle: string) => {
 														 this_.props.myStoryArea.handleNewTitle(iMoment, iNewTitle);
@@ -112,12 +124,37 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea }, { 
 			return tComponents;
 		}
 
+		function dialog(iMode:string) {
+			if (iMode === 'dialog') {
+				return (<Dialog dialogState={this_.state.dialogState}> </Dialog>);
+			}
+			else return '';
+		}
+
+		function coverSheet( iMode:string) {
+			if( iMode === 'dialog') {
+				return (
+					<div className= 'SB-cover-sheet'
+					onClickCapture={(e)=>{
+						console.log('Click cover');
+						e.preventDefault();
+						e.stopPropagation();
+						return false;
+					}}> </div>
+				);
+			}
+			else return '';
+		}
+
 		return (
 			<div className='SB-story-area'
 			onDragOver={this.handleDragOver}
-			onDrop={this.handleDrop}>
+			onDrop={this.handleDrop}
+			>
 				{momentsComponents()}
 				{tPlacementIndicator}
+				{coverSheet(this_.state.mode)}
+				{dialog(this_.state.mode)}
 			</div>
 		);
 	}

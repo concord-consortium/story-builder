@@ -99,6 +99,13 @@ export class MomentsManager {
 		})
 	}
 
+	getLastMoment():Moment | null {
+		let tLastMoment = this.startingMoment;
+		while( tLastMoment && tLastMoment.next)
+			tLastMoment = tLastMoment.next;
+		return tLastMoment;
+	}
+
 	/**
 	 * Return the Moment corresponding to the given ID.
 	 * @param iID

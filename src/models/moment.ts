@@ -22,6 +22,8 @@ export class Moment {
 		this.momentNumber = iMomentNumber;
 		if (iState)
 			this.myState = iState;
+		if( iState === 'new')
+			this.isNewMoment = true;
 	}
 
 	setForceUpdateCallback(iCallback: () => void) {

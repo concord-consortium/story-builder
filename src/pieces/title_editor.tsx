@@ -23,8 +23,9 @@ export class TitleEditor extends Component<{
 	componentDidMount() {
 		this.savedText = this.props.myMoment.title;
 		this.textArea.current.value = this.savedText;
-		if( this.props.shouldSelectAll)
+		if( this.props.shouldSelectAll) {
 			this.textArea.current.select();
+		}
 	}
 
 	componentDidUpdate() {

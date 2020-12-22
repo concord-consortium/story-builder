@@ -10,6 +10,7 @@ import {
 export class StoryArea {
 
 	public momentsManager:MomentsManager = new MomentsManager();
+	public dialogStates:any;
 	private restoreInProgress = false;
 	private waitingForDocumentState = false;
 	private saveStateInSrcMoment = false;
@@ -17,9 +18,11 @@ export class StoryArea {
 	private changeCount = 0;
 	private narrativeBoxID: number = 0;
 	private justMadeInitialMomentAndText = false;
+	private pingCallback:Function | null = null;
 	private forceUpdateCallback:Function | null = null;
 
 	constructor() {
+		this.dialogStates = this.setupDialogStates();
 		this.handleNotification = this.handleNotification.bind(this);
 		this.deleteCurrentMoment = this.deleteCurrentMoment.bind(this);
 		this.updateCurrentMoment = this.updateCurrentMoment.bind(this);
@@ -29,10 +32,57 @@ export class StoryArea {
 		this.saveCurrentMoment = this.saveCurrentMoment.bind(this);
 		this.getPluginState = this.getPluginState.bind(this);
 		this.restorePluginState = this.restorePluginState.bind(this);
+		this.handleCancel = this.handleCancel.bind(this);
+		this.handleDiscard = this.handleDiscard.bind(this);
+		this.handleSave = this.handleSave.bind(this);
+		this.handleOnlyNew = this.handleOnlyNew.bind(this);
+		this.handleSaveToBoth = this.handleSaveToBoth.bind(this);
 
 		codapInterface.on('notify', '*', '', this.handleNotification);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
+	}
+
+	setupDialogStates():any {
+		let states = {
+			qClickAnotherMoment: {
+				prompt: 'Save or discard changes?',
+				explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?',
+				labeledCallbacks: [
+					{ label: 'Cancel',
+						callback: this.handleCancel},
+					{ label: 'Discard',
+						callback: this.handleDiscard},
+					{ label: 'Save',
+						callback: this.handleSave}
+				]
+			},
+			qDupNotLastMoment: {
+				prompt: 'Save changes before creating Moment %@?',
+				explanation: `You have made changes to Moment %@. Would you like to save those changes to both Moments %@
+				 and %@ or only to the new Moment %@?`,
+				labeledCallbacks: [
+					{ label: 'Discard',
+						callback: this.handleDiscard},
+					{ label: 'Moments %@ and %@',
+						callback: this.handleSaveToBoth},
+					{ label: 'Only Moment %@',
+						callback: this.handleOnlyNew}
+				]
+			},
+			qRevert: {
+				prompt: 'Discard changes?',
+				explanation: `Would you like to discard the changes you made to Moment %@ (and revert to the state it was
+				in before you made changes)?`,
+				labeledCallbacks: [
+					{ label: 'Cancel',
+						callback: this.handleCancel},
+					{ label: 'Discard',
+						callback: this.handleDiscard}
+				]
+			},
+		};
+		return states;
 	}
 
 	async initialize() {
@@ -53,6 +103,11 @@ export class StoryArea {
 			}
 		}
 	}
+
+	setPingCallback( iCallback:Function) {
+		this.pingCallback = iCallback;
+	}
+
 
 	setForceUpdateCallback( iCallback:Function) {
 		this.forceUpdateCallback = iCallback;
@@ -113,6 +168,8 @@ export class StoryArea {
 		this.momentsManager.currentMoment = tMoment;
 		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
 
+		this.doBeginChangeToNewMoment( tMoment);
+
 		this.forceComponentUpdate();     //  make the moment appear on the screen in the bar
 	}
 
@@ -164,7 +221,7 @@ export class StoryArea {
 	private async restoreCodapState(iCodapState: object | null): Promise<any> {
 		let out: any = null;
 		console.log(`begin restore state`);
-		if (iCodapState) {
+		if (!objectIsEmpty(iCodapState)) {
 			let this_ = this;
 			this.restoreInProgress = true;
 			out = await codapInterface.sendRequest({
@@ -209,7 +266,6 @@ export class StoryArea {
 	private requestDocumentState(): void {
 		this.waitingForDocumentState = true;
 		codapInterface.sendRequest({action: 'get', resource: 'document'});
-		// console.log(`Requesting a document state, currentMoment is [${this.momentsManager.getCurrentMomentTitle()}]`)
 	}
 
 	/**
@@ -263,51 +319,99 @@ export class StoryArea {
 	}
 
 	doBeginChangeToNewMoment(iMoment: Moment | null) {
-
+		if( !this.pingCallback) {
+			console.log('pingCallback not initialized');
+			return;
+		}
 		if (this.momentsManager.currentMoment) {
+			let dialogMode = '';
 			this.momentsManager.srcMoment = this.momentsManager.currentMoment;
 
 			if (iMoment) {  //  a destination moment already exists
 				this.momentsManager.dstMoment = iMoment;
+				if( this.changeCount !== 0)
+					dialogMode = 'qClickAnotherMoment';
 			} else {        //  we are making a new moment
+				if( this.momentsManager.srcMoment !== this.momentsManager.getLastMoment())
+					dialogMode = 'qDupNotLastMoment';
 				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({});
-				this.momentsManager.dstMoment.setIsNew(true);
-				//  it is not yet the current moment
 			}
 
-			//  we are now guaranteed that srcMoment and dstMoment are Moments, not null.
-
-			const qSaveChanges =
-				`You have made ${this.changeCount === 1 ? "a change" : "some changes"}. ` +
-				`Would you like to save ${this.changeCount === 1 ? "it" : "them"} in [${this.momentsManager.getCurrentMomentTitle()}]?`;
-			const qChangesStayOnScreen = `The new moment you're making will be called [${this.momentsManager.dstMoment.title}]. ` +
-				`Would you like these changes to appear in [${this.momentsManager.dstMoment.title}]?`;
-
+			//  We are now guaranteed that srcMoment and dstMoment are Moments, not null.
+			//	We must determine where changes should be saved, if at all
 			this.saveStateInSrcMoment = false;
 			this.saveStateInDstMoment = false;
 
-			if (objectIsEmpty(this.momentsManager.srcMoment.codapState)) {
-				//  whenever you're going from a "new" moment, you must save its state.
-				//  this is a convenience; we could ask.
+			if (dialogMode === '') {
+				//  whenever you're going from a "new" moment, you must save its state OR
+				//  if there are no changes we'll be saving the unchanged state in the source moment (redundantly?)
 				this.saveStateInSrcMoment = true;
-			} else if (this.changeCount === 0) {
-				//  no changes? We'll effectively save, but we won't ask.
-				this.saveStateInSrcMoment = true;       //  could be false..shouldn't matter, right?
-			} else if (window.confirm(qSaveChanges)) {
+				this.requestDocumentState();	// When received it will be saved in source moment
+			}
+			else {
+				// There are changes so we have to set up for asynchronous feedback from user
+				let tChosenState = this.dialogStates[dialogMode],
+						tSrcMoment = this.momentsManager.srcMoment;
+				switch (dialogMode) {
+					case 'qClickAnotherMoment':
+						tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber);
+						break;
+					case 'qDupNotLastMoment':
+						tChosenState.prompt = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber + 1);
+						tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber);
+						tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber);
+						tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber + 1);
+						tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber + 1);
+						tChosenState.labeledCallbacks[2].label = tChosenState.labeledCallbacks[2].label.replace('%@', tSrcMoment.momentNumber + 1);
+						tChosenState.labeledCallbacks[1].label = tChosenState.labeledCallbacks[1].label.replace('%@', tSrcMoment.momentNumber);
+						tChosenState.labeledCallbacks[1].label = tChosenState.labeledCallbacks[1].label.replace('%@', tSrcMoment.momentNumber + 1);
+						break;
+					default:
+						console.log('Unexpected lack of dialog mode')
+				}
+				this.pingCallback(tChosenState);
+			}
+/*
+			else if (this.pingCallback({ping: 'qSaveChanges',
+				moment: this.momentsManager.currentMoment,
+				changes: this.changeCount})) {
 				//  there have been changes, so we will save.
 				this.saveStateInSrcMoment = true;
 			} else if (!objectIsEmpty(this.momentsManager.dstMoment.codapState)
-				&& window.confirm(qChangesStayOnScreen)) {
+				&& this.pingCallback({ping: 'qChangesStayOnScreen',
+					moment: this.momentsManager.dstMoment})) {
 				//  so we're NOT saving changes in the source, but do we want them in the destination
 				this.saveStateInDstMoment = true;
 			} else {
 				//  we don't want to save the srcMoment. Nor in the dst.
 			}
 			this.requestDocumentState();
+*/
 		} else {
 			//  happens when there is no current moment; so make a new one.
 			this.makeInitialMomentAndTextComponent()
 		}
+	}
+
+	handleCancel() {
+		if( this.pingCallback)
+			this.pingCallback({ping: 'normal'})
+	}
+
+	handleDiscard() {
+
+	}
+
+	handleSave() {
+		console.log('In Save');
+	}
+
+	handleOnlyNew() {
+		console.log('In handleOnlyNew');
+	}
+
+	handleSaveToBoth() {
+		console.log('In handleSaveToBoth');
 	}
 
 	/**
