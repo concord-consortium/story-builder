@@ -12,10 +12,6 @@
   color: var(--text);
 }
 
-.SB div {
-  overflow: hidden;
-}
-
 .SB-empty-back {
   position: absolute;
   height: 100%;
@@ -136,7 +132,7 @@
   float: left;
 }
 
-.SB-delete-area {
+.SB-delete-area{
   position: relative;
   margin-top: -9px;
   width: 130px;

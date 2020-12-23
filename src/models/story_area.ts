@@ -22,10 +22,8 @@ export class StoryArea {
 	private forceUpdateCallback:Function | null = null;
 
 	constructor() {
-		this.dialogStates = this.setupDialogStates();
 		this.handleNotification = this.handleNotification.bind(this);
 		this.deleteCurrentMoment = this.deleteCurrentMoment.bind(this);
-		this.updateCurrentMoment = this.updateCurrentMoment.bind(this);
 		this.revertCurrentMoment = this.revertCurrentMoment.bind(this);
 		this.makeNewMoment = this.makeNewMoment.bind(this);
 		this.handleNewTitle = this.handleNewTitle.bind(this);
@@ -38,13 +36,15 @@ export class StoryArea {
 		this.handleOnlyNew = this.handleOnlyNew.bind(this);
 		this.handleSaveToBoth = this.handleSaveToBoth.bind(this);
 
+		this.dialogStates = this.setupDialogStates();
+
 		codapInterface.on('notify', '*', '', this.handleNotification);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
 	}
 
 	setupDialogStates():any {
-		let states = {
+		return {
 			qClickAnotherMoment: {
 				prompt: 'Save or discard changes?',
 				explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?',
@@ -82,7 +82,6 @@ export class StoryArea {
 				]
 			},
 		};
-		return states;
 	}
 
 	async initialize() {
@@ -168,7 +167,7 @@ export class StoryArea {
 		this.momentsManager.currentMoment = tMoment;
 		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
 
-		this.doBeginChangeToNewMoment( tMoment);
+		this.doBeginTransitionToDifferentMoment( tMoment);
 
 		this.forceComponentUpdate();     //  make the moment appear on the screen in the bar
 	}
@@ -211,6 +210,8 @@ export class StoryArea {
 
 		await this.restoreCodapState(newState)
 			.catch(() => console.log(`••• caught matching CODAP state to moment [${tMomentID}]`));
+
+		this.resetChangeCount();
 	}
 
 	/**
@@ -263,9 +264,9 @@ export class StoryArea {
 	 * But the result cannot come back, even with _await_.
 	 * So we set a flag which gets unset in a partner method, `receiveNewDocumentState`.
 	 */
-	private requestDocumentState(): void {
+	private async requestDocumentState() {
 		this.waitingForDocumentState = true;
-		codapInterface.sendRequest({action: 'get', resource: 'document'});
+		await codapInterface.sendRequest({action: 'get', resource: 'document'});
 	}
 
 	/**
@@ -284,7 +285,6 @@ export class StoryArea {
 			if (this.saveStateInDstMoment) {
 				StoryArea.matchMomentToCODAPState(this.momentsManager.dstMoment, iCommand.values.state, true);
 			}
-			this.doEndChangeToNewMoment();
 		} else {
 			console.log(`received a document state --- but we were not waiting for one`);
 		}
@@ -292,9 +292,11 @@ export class StoryArea {
 
 	async handleMomentClick(iMoment:Moment) {
 		if( iMoment) {
-			this.doBeginChangeToNewMoment(iMoment);
+			await this.doBeginTransitionToDifferentMoment(iMoment);
+/*
 			this.momentsManager.setCurrentMoment(iMoment);
 			await StoryArea.displayNarrativeAndTitleInTextBox(iMoment);
+*/
 		}
 	}
 
@@ -306,8 +308,8 @@ export class StoryArea {
 	 * So we need the state from CODAP itself.
 	 * We actually receive the state in handleNotification(). This just makes the request.
 	 */
-	public makeNewMoment() {
-		this.doBeginChangeToNewMoment(null);
+	async makeNewMoment() {
+		await this.doBeginTransitionToDifferentMoment(null);
 	}
 
 	public async handleNewTitle( iMoment:Moment, iNewTitle:string) {
@@ -318,7 +320,7 @@ export class StoryArea {
 		this.forceComponentUpdate();
 	}
 
-	doBeginChangeToNewMoment(iMoment: Moment | null) {
+	async doBeginTransitionToDifferentMoment(iMoment: Moment | null) {
 		if( !this.pingCallback) {
 			console.log('pingCallback not initialized');
 			return;
@@ -344,14 +346,21 @@ export class StoryArea {
 
 			if (dialogMode === '') {
 				//  whenever you're going from a "new" moment, you must save its state OR
-				//  if there are no changes we'll be saving the unchanged state in the source moment (redundantly?)
-				this.saveStateInSrcMoment = true;
-				this.requestDocumentState();	// When received it will be saved in source moment
+				if( objectIsEmpty(this.momentsManager.srcMoment.codapState)) {
+					this.saveStateInSrcMoment = true;
+					this.requestDocumentState();	// When received it will be saved in source moment
+				}
+				this.momentsManager.setCurrentMoment(this.momentsManager.dstMoment);
+				await this.matchCODAPStateToMoment(this.momentsManager.dstMoment);
+				await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.dstMoment);
 			}
 			else {
 				// There are changes so we have to set up for asynchronous feedback from user
 				let tChosenState = this.dialogStates[dialogMode],
 						tSrcMoment = this.momentsManager.srcMoment;
+				tChosenState.srcMoment = this.momentsManager.srcMoment;
+				tChosenState.dstMoment = this.momentsManager.dstMoment;
+				tChosenState.mode = dialogMode;
 				switch (dialogMode) {
 					case 'qClickAnotherMoment':
 						tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber);
@@ -393,24 +402,48 @@ export class StoryArea {
 		}
 	}
 
-	handleCancel() {
+	pingToNormal() {
 		if( this.pingCallback)
-			this.pingCallback({ping: 'normal'})
+			this.pingCallback(null);	// signals story area component to go back to normal
 	}
 
-	handleDiscard() {
-
+	/**
+	 * The user has pressed Cancel on one of three different dialog boxes. We just want things to go back to normal
+	 * without any changes to story area.
+	 */
+	handleCancel() {
+		this.pingToNormal();
 	}
 
-	handleSave() {
-		console.log('In Save');
+	/**
+	 * In a discard, we want to reinstate the source moment's state in CODAP and go on to make the
+	 * destination moment the current moment.
+	 * @param iDialogState
+	 */
+	async handleDiscard( iDialogState:any) {
+		await this.matchCODAPStateToMoment( iDialogState.srcMoment);
+		await this.doBeginTransitionToDifferentMoment( iDialogState.dstMoment);
+		this.pingToNormal();
 	}
 
-	handleOnlyNew() {
+	/**
+	 * The user has made changes in the current moment and is about to move on to another, pre-existing moment.
+	 * They have chosen to save the changes in the current moment.
+	 * @param iDialogState
+	 */
+	async handleSave( iDialogState:any) {
+		await this.saveCurrentMoment();
+		await this.matchCODAPStateToMoment(iDialogState.dstMoment);
+		await StoryArea.displayNarrativeAndTitleInTextBox(iDialogState.dstMoment);
+		this.momentsManager.setCurrentMoment( iDialogState.dstMoment);
+		this.pingToNormal();
+	}
+
+	handleOnlyNew( iDialogState:any) {
 		console.log('In handleOnlyNew');
 	}
 
-	handleSaveToBoth() {
+	handleSaveToBoth( iDialogState:any) {
 		console.log('In handleSaveToBoth');
 	}
 
@@ -439,51 +472,24 @@ export class StoryArea {
 		}
 	}
 
-	private async doEndChangeToNewMoment(): Promise<void> {
-
-		this.momentsManager.currentMoment = this.momentsManager.dstMoment;
-
-		await this.matchCODAPStateToMoment(this.momentsManager.currentMoment)
-			.catch(() => {
-				console.log(`••• problem matching the codap state 
-            to [${this.momentsManager.getCurrentMomentTitle()}]`)
-			});
-		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
-
-		// this.forceComponentUpdate();
-
-		// console.log(this.momentsManager.getMomentSummary());
-	}
-
-	saveCurrentMoment() {
+	/**
+	 * Update the current moment so that its codapState matches the document
+	 */
+	async saveCurrentMoment() {
 		if (this.momentsManager.currentMoment) {
 			this.momentsManager.srcMoment = this.momentsManager.dstMoment = this.momentsManager.currentMoment;
 			this.saveStateInSrcMoment = true;
-			this.requestDocumentState();
+			await this.requestDocumentState();
 			// console.log(`Explicitly saved [${this.momentsManager.currentMoment.title}] in saveCurrentMoment`);
 		} else {
 			alert(`Hmmm. There is no current moment to save`);
 		}
 	}
 
-	private deleteCurrentMoment(): void {
+	private async deleteCurrentMoment() {
 		this.momentsManager.deleteCurrentMoment();    //  also sets a new currentMoment
 		// console.log(`moment removed from momentsManager; ready to match to new current moment`);
-		this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
-	}
-
-	/**
-	 * Update the current moment so that its codapState matches the document
-	 */
-	private updateCurrentMoment(): void {
-		if (this.momentsManager.currentMoment) {
-			this.saveStateInSrcMoment = true;
-			this.saveStateInDstMoment = true;
-			this.momentsManager.srcMoment = this.momentsManager.currentMoment;
-			this.momentsManager.dstMoment = this.momentsManager.currentMoment;
-
-			this.requestDocumentState();
-		}
+		await this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
 	}
 
 	/**

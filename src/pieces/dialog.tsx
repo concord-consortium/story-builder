@@ -19,9 +19,13 @@ export class Dialog extends Component<{dialogState:{
 
 		function buttons() {
 			return this_.props.dialogState.labeledCallbacks.map( (iLabeledCallback, iIndex)=>{
-				return (<button className='SB-dialog-button'
+				return (<button key={`button-${iIndex}`}
+												className='SB-dialog-button'
 												autoFocus={iIndex === numLabels - 1}
-									onClick={iLabeledCallback.callback}>{iLabeledCallback.label}</button>);
+									onClick={()=> {
+										iLabeledCallback.callback(this_.props.dialogState);
+									}}>
+					{iLabeledCallback.label}</button>);
 			});
 		}
 

@@ -57,7 +57,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 	}
 
 	onStoryAreaPing( iDialogState:any) {
-		if( !iDialogState)
+		if( !iDialogState || iDialogState.ping === 'normal')
 			this.setState({mode: 'normal'});
 		else {
 			this.setState( { mode: 'dialog', dialogState: iDialogState});
