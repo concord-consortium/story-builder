@@ -285,6 +285,7 @@ export class StoryArea {
 			if (this.saveStateInDstMoment) {
 				StoryArea.matchMomentToCODAPState(this.momentsManager.dstMoment, iCommand.values.state, true);
 			}
+			this.resetChangeCount();
 		} else {
 			console.log(`received a document state --- but we were not waiting for one`);
 		}
@@ -293,10 +294,6 @@ export class StoryArea {
 	async handleMomentClick(iMoment:Moment) {
 		if( iMoment) {
 			await this.doBeginTransitionToDifferentMoment(iMoment);
-/*
-			this.momentsManager.setCurrentMoment(iMoment);
-			await StoryArea.displayNarrativeAndTitleInTextBox(iMoment);
-*/
 		}
 	}
 
@@ -334,7 +331,8 @@ export class StoryArea {
 				if( this.changeCount !== 0)
 					dialogMode = 'qClickAnotherMoment';
 			} else {        //  we are making a new moment
-				if( this.momentsManager.srcMoment !== this.momentsManager.getLastMoment())
+				if( this.momentsManager.srcMoment !== this.momentsManager.getLastMoment() &&
+					this.changeCount !== 0)
 					dialogMode = 'qDupNotLastMoment';
 				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({});
 			}
@@ -439,12 +437,35 @@ export class StoryArea {
 		this.pingToNormal();
 	}
 
-	handleOnlyNew( iDialogState:any) {
-		console.log('In handleOnlyNew');
+	/**
+	 * The user has made a change in the current moment which is not the last moment. Then pressed Duplicate and,
+	 * in the resulting dialog box specified they only want the changes to appear in the new moment.
+	 * What this amounts to is leaving CODAP in its current state and moving to the new moment—dstMoment.
+	 * @param iDialogState
+	 */
+	async handleOnlyNew( iDialogState:any) {
+		let tNewMoment = iDialogState.dstMoment;
+		await StoryArea.displayNarrativeAndTitleInTextBox(tNewMoment);
+		this.momentsManager.setCurrentMoment(tNewMoment);
+		tNewMoment.setIsChanged( true);	// Because we know there are changes
+		this.pingToNormal();
 	}
 
-	handleSaveToBoth( iDialogState:any) {
-		console.log('In handleSaveToBoth');
+	/**
+	 * The user has made a change in the current moment which is not the last moment. Then pressed Duplicate and,
+	 * in the resulting dialog box specified they want the changes to be part of both the current moment and the new moment.
+	 *
+	 * @param iDialogState
+	 */
+	async handleSaveToBoth( iDialogState:any) {
+		this.saveStateInSrcMoment = true;
+		this.saveStateInDstMoment = true;
+		await this.requestDocumentState();
+/*
+		this.resetChangeCount();
+		await this.doBeginTransitionToDifferentMoment( iDialogState.dstMoment);
+*/
+		this.pingToNormal();
 	}
 
 	/**
@@ -486,7 +507,7 @@ export class StoryArea {
 		}
 	}
 
-	private async deleteCurrentMoment() {
+	async deleteCurrentMoment() {
 		this.momentsManager.deleteCurrentMoment();    //  also sets a new currentMoment
 		// console.log(`moment removed from momentsManager; ready to match to new current moment`);
 		await this.matchCODAPStateToMoment(this.momentsManager.currentMoment);

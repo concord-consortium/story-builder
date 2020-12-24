@@ -172,6 +172,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 				onSaveCallback={this.props.onSaveCallback}
 				onRevertCallback={this.props.onRevertCallback}/> : null,
 			tMomentClassName = `SB-moment ${tIsActive ? 'active' : ''}`,
+			tMomentContainerName = `SB-moment-container ${tIsActive ? 'active' : ' '}${tIsNew ? ' start' : ''}`,
 			tTitleArea = (
 				<TitleEditor myMoment={this.props.myMoment}
 										 handleBlurCallback={this.handleTitleEditBlur}
@@ -180,7 +181,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 
 		return (
 			<div
-				className={`SB-moment-container${tIsNew ? ' start' : ''}`}
+				className={tMomentContainerName}
 				ref={this.container}
 				onDragOver={this.handleDragOver}
 			>

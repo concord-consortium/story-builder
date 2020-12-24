@@ -12,6 +12,9 @@
   color: var(--text);
 }
 
+/**
+This is the container for the entire app
+ */
 .SB-empty-back {
   position: absolute;
   height: 100%;
@@ -19,11 +22,17 @@
   background-color: #ededed;
 }
 
+/**
+Buttons, including the help button, use this
+ */
 .SB-button {
   position: absolute;
   display: inline-block;
 }
 
+/**
+    The help button is different than the others in that it sticks to the right edge
+ */
 .SB-help-default {
   right: 0;
   object-fit: contain;
@@ -34,8 +43,11 @@
   content: url("./img/help-hover-click.svg");
 }
 
+/**
+    This is the container for the moments
+ */
 .SB-story-area {
-  display: inline-block;
+  display: flex;
   padding: 5px 12px 5px 5px;
   height: 100%;
   margin: 0;
@@ -43,6 +55,9 @@
   background-color: #ffffff;
 }
 
+/**
+    We use this to cover up the story area when a dialog box is showing
+ */
 .SB-cover-sheet {
   position: fixed;
   height: 100%;
@@ -54,10 +69,10 @@
 
 .SB-moment-container {
   margin-left: 15px;
-  display: flex;
   justify-content: center;
   float: left;
   height: 100%;
+  flex: 0 1 var(--moment-width);
 }
 
 .SB-moment-container:first-child {
@@ -70,15 +85,18 @@
   z-index: 0;
 }
 
+.SB-moment-container.active{
+  flex-shrink: 0;
+}
+
 .SB-moment {
   position: relative;
-  float: left;
   padding: 0 3px 3px 0;
   border-radius: 5px;
   border: solid 2px #d6d6d6;
   background-color: white;
   height: 55%;
-  width: var(--moment-width);
+  /*width: var(--moment-width);*/
   z-index: 1;
 }
 .SB-moment:hover {
@@ -100,6 +118,16 @@
 
 .SB-moment.changed:hover {
   background-color: rgba(255, 252, 55, 0.4);
+}
+
+.SB-empty-moment {
+  margin-left: 15px;
+  justify-content: center;
+  float: left;
+  height: 55%;
+  width: var(--moment-width);
+  background-color: #e5e5e5;
+  border-radius: 5px;
 }
 
 .SB-title-editor {
@@ -124,7 +152,6 @@
 .SB-moment-number {
   width: 17px;
   height: 15px;
-  margin: 0 86px 4px 0;
   border-radius: 4px;
   border: solid 1px #d6d6d6;
   background-color: #d6d6d6;
@@ -135,8 +162,7 @@
 .SB-delete-area{
   position: relative;
   margin-top: -9px;
-  width: 130px;
-  right: 0;
+  right: -14px; /* to position button just outside container*/
 }
 
 .SB-control-area {
@@ -203,6 +229,18 @@
   content: url("./img/duplicate-disabled.svg");
 }
 
+.SB-add-default{
+  object-fit: contain;
+  content: url("./img/add-default.svg");
+}
+
+.SB-add-default:hover{
+  content: url("./img/add-hover-click.svg");
+}
+
+/**
+    This defines a narrow vertical bar that, during drag of a moment, indicates where the drop will take place.
+ */
 .SB-placement {
   position: absolute;
   z-index: 2;
@@ -213,6 +251,9 @@
   left: -100px;
 }
 
+/**
+    These styles relate to the "modal" dialog box that comes up to give the user a choice of what to do about changes.
+ */
 .SB-dialog {
   position: absolute;
   z-index: 4;

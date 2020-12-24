@@ -4,6 +4,7 @@ import {MomentsManager} from "../models/moments-manager";
 import {Moment} from "../models/moment";
 import {MomentComponent} from "./moment_component";
 import {Dialog} from "./dialog";
+import {EmptyMoment} from "./empty_moment";
 
 export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 	{ mode:string, count: number, dialogState:any | null }> {
@@ -44,7 +45,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 	}
 
 	onMomentDelete() {
-		this.myMomentsManager.deleteCurrentMoment();
+		this.props.myStoryArea.deleteCurrentMoment();
 		this.refresh();
 	}
 
@@ -121,6 +122,13 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 														onDragOverCallback={this_.setInfoOfMomentBeingDraggedOver}/>
 				);
 			});
+			if( tComponents.length === 0) {
+				tComponents.push(
+					<EmptyMoment
+						key='empty'
+						onClick ={()=>this_.onMomentDuplicate()}/>
+				)
+			}
 			return tComponents;
 		}
 
