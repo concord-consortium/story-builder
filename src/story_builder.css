@@ -26,8 +26,16 @@ This is the container for the entire app
 Buttons, including the help button, use this
  */
 .SB-button {
-  position: absolute;
   display: inline-block;
+  cursor: pointer;
+}
+
+.SB-help-lock-buttons {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30px;
+  height: 64px;
 }
 
 /**
@@ -41,6 +49,29 @@ Buttons, including the help button, use this
 
 .SB-help-default:hover {
   content: url("./img/help-hover-click.svg");
+}
+
+/**
+    The lock button is different than the others in that it sticks to the right edge below help
+ */
+.SB-unlock-default {
+  right: 0;
+  object-fit: contain;
+  content: url("./img/unlock-default.svg");
+}
+
+.SB-unlock-default:hover {
+  content: url("./img/unlock-hover-click.svg");
+}
+
+.SB-lock-default {
+  right: 0;
+  object-fit: contain;
+  content: url("./img/lock-default.svg");
+}
+
+.SB-lock-default:hover {
+  content: url("./img/lock-hover-click.svg");
 }
 
 /**
@@ -124,10 +155,12 @@ Buttons, including the help button, use this
   margin-left: 15px;
   justify-content: center;
   float: left;
-  height: 55%;
+  height: 60%;
   width: var(--moment-width);
   background-color: #e5e5e5;
   border-radius: 5px;
+  cursor: pointer;
+  display: flex;
 }
 
 .SB-title-editor {
@@ -181,6 +214,7 @@ Buttons, including the help button, use this
   position: absolute;
   right: 0;
   content: url("./img/delete-default.svg");
+  z-index: 3;
 }
 
 .SB-delete-default:hover{
@@ -190,6 +224,7 @@ Buttons, including the help button, use this
 .SB-revert-default{
   object-fit: contain;
   content: url("./img/revert-default.svg");
+  cursor: pointer;
 }
 
 .SB-revert-default:hover{
@@ -204,6 +239,7 @@ Buttons, including the help button, use this
 .SB-save-default{
   object-fit: contain;
   content: url("./img/save-default.svg");
+  cursor: pointer;
 }
 
 .SB-save-default:hover{
@@ -218,6 +254,7 @@ Buttons, including the help button, use this
 .SB-duplicate-default{
   object-fit: contain;
   content: url("./img/duplicate-default.svg");
+  cursor: pointer;
 }
 
 .SB-duplicate-default:hover{
@@ -232,6 +269,7 @@ Buttons, including the help button, use this
 .SB-add-default{
   object-fit: contain;
   content: url("./img/add-default.svg");
+  cursor: pointer;
 }
 
 .SB-add-default:hover{

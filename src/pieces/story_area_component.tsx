@@ -82,6 +82,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 		this.myMomentsManager.moveMomentToPositionAfter( tMomentBeingDragged, tInserAfterMoment);
 		this.placementIndicator.current.style.left = null;
 		this.myMomentsManager.setCurrentMoment(tMomentBeingDragged);
+		StoryArea.displayNarrativeAndTitleInTextBox(tMomentBeingDragged);
 		this.refresh();
 	}
 
@@ -110,6 +111,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 				tComponents.push(
 					<MomentComponent key={`moment-${iMoment.ID}`}
 													 myMoment={iMoment}
+													 momentsAreLocked={this_.props.myStoryArea.isLocked}
 													 onClickCallback={this_.onMomentClick}
 													 onTitleBlurCallback={(iMoment: Moment, iNewTitle: string) => {
 														 this_.props.myStoryArea.handleNewTitle(iMoment, iNewTitle);
@@ -133,14 +135,14 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 		}
 
 		function dialog(iMode:string) {
-			if (iMode === 'dialog') {
+			if (iMode === 'dialog' && !this_.props.myStoryArea.isLocked) {
 				return (<Dialog dialogState={this_.state.dialogState}> </Dialog>);
 			}
 			else return '';
 		}
 
 		function coverSheet( iMode:string) {
-			if( iMode === 'dialog') {
+			if( iMode === 'dialog' && !this_.props.myStoryArea.isLocked) {
 				return (
 					<div className= 'SB-cover-sheet'
 					onClickCapture={(e)=>{

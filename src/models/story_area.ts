@@ -11,6 +11,7 @@ export class StoryArea {
 
 	public momentsManager:MomentsManager = new MomentsManager();
 	public dialogStates:any;
+	public isLocked:boolean = false;
 	private restoreInProgress = false;
 	private waitingForDocumentState = false;
 	private saveStateInSrcMoment = false;
@@ -180,8 +181,9 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
-		// console.log(JSON.stringify(iCommand));
-		if (iCommand.resource !== 'undoChangeNotice') {
+		if( this.isLocked)
+			return;	// because we don't respond to notifications
+		if (iCommand.resource !== 'undoChangeNotice' && iCommand.values.operation !== 'selectCases') {
 			//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
 			if (iCommand.values.operation === 'newDocumentState') {
 				this.receiveNewDocumentState(iCommand);
@@ -210,7 +212,8 @@ export class StoryArea {
 
 		await this.restoreCodapState(newState)
 			.catch(() => console.log(`••• caught matching CODAP state to moment [${tMomentID}]`));
-
+		if( iMoment)
+			iMoment.setIsChanged(false);
 		this.resetChangeCount();
 	}
 
@@ -243,8 +246,14 @@ export class StoryArea {
 		return out;
 	}
 
-	restorePluginState(iState:any) {
-		this.momentsManager.restoreFromStorage(iState);
+	restorePluginState(iStorage:any) {
+		if(iStorage && iStorage.hasOwnProperty( 'momentsStorage')) {
+			this.isLocked = iStorage.isLocked || false;
+			this.momentsManager.restoreFromStorage(iStorage.momentsStorage);
+		}
+		else {	// for backward compatibility
+			this.momentsManager.restoreFromStorage( iStorage);
+		}
 		this.forceComponentUpdate();
 	}
 
@@ -254,7 +263,10 @@ export class StoryArea {
 		} else {
 			return {
 				success: true,
-				values: this.momentsManager.createStorage()
+				values: {
+					isLocked: this.isLocked,
+					momentsStorage: this.momentsManager.createStorage()
+				}
 			};
 		}
 	}
@@ -517,14 +529,10 @@ export class StoryArea {
 	 * Make CODAP revert to the last-saved state associated with the currentMoment.
 	 */
 	public revertCurrentMoment(): void {
-		let tCurrentMoment = this.momentsManager.currentMoment;
-		if( tCurrentMoment) {
-			this.matchCODAPStateToMoment(tCurrentMoment);
-			tCurrentMoment.setIsChanged(false);
-		}
+		this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
 	}
 
-	private static async displayNarrativeAndTitleInTextBox( iMoment:Moment | null) {
+	public static async displayNarrativeAndTitleInTextBox( iMoment:Moment | null) {
 		await StoryArea.displayNarrativeInTextBox(iMoment);
 		await StoryArea.displayTitleInTextBox(iMoment);
 	}

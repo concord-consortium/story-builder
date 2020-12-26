@@ -8,7 +8,8 @@ import {Moment} from "../models/moment";
 export class TitleEditor extends Component<{
 	myMoment: Moment,
 	handleBlurCallback:any,
-	shouldSelectAll:boolean
+	shouldSelectAll:boolean,
+	canEdit:boolean
 },
 	any> {
 	private textArea:any;
@@ -61,7 +62,7 @@ export class TitleEditor extends Component<{
 			<textarea
 				id={"currentMomentTitleEditBox"}
 				ref={this.textArea}
-				disabled={!this.props.myMoment.isActive()}
+				disabled={!this.props.myMoment.isActive() || !this.props.canEdit}
 				className={"SB-moment-title SB-title-editor"}
 				onFocus={this.handleFocus}
 				onBlur={(e:any)=> {

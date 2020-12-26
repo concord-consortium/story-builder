@@ -4,6 +4,7 @@ import {ControlArea} from "./control_area";
 import {TitleEditor} from "./title_editor";
 
 interface MomentProps {
+	momentsAreLocked: boolean,
 	myMoment: Moment,
 	onClickCallback: any,
 	onTitleKeydownCallback: any,
@@ -156,17 +157,18 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 	}
 
 	public render() {
-		let tIsActive = this.props.myMoment.isActive(),
+		let tIsLocked = this.props.momentsAreLocked,
+			tIsActive = this.props.myMoment.isActive(),
 			tIsChanged = this.props.myMoment.isChanged(),
 			tIsNew = this.props.myMoment.isNew(),
-			tDeleteButton = tIsActive ?
+			tDeleteButton = tIsActive && !tIsLocked ?
 				(<div className='SB-delete-area'>
-						<img className={`SB-delete-default`} alt='Delete this moment'
+						<img className={'SB-button SB-delete-default'} alt='Delete this moment'
 								 onClick={this.handleDelete}
 								 title="Delete this moment"/>
 					</div>
 				) : null,
-			tControlArea = tIsActive ? <ControlArea
+			tControlArea = tIsActive && !tIsLocked ? <ControlArea
 				myMoment={this.props.myMoment}
 				onDuplicateCallback={this.props.onDuplicateCallback}
 				onSaveCallback={this.props.onSaveCallback}
@@ -176,7 +178,8 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 			tTitleArea = (
 				<TitleEditor myMoment={this.props.myMoment}
 										 handleBlurCallback={this.handleTitleEditBlur}
-										 shouldSelectAll={tIsNew}>
+										 shouldSelectAll={tIsNew}
+										 canEdit={!tIsLocked}>
 				</TitleEditor>);
 
 		return (
@@ -185,9 +188,9 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 				ref={this.container}
 				onDragOver={this.handleDragOver}
 			>
-				<div className={tMomentClassName + (tIsChanged ? ' changed' : '')}
+				<div className={tMomentClassName + (tIsChanged && !this.props.momentsAreLocked ? ' changed' : '')}
 						 onClick={this.handleClick}
-						 draggable
+						 draggable={!this.props.momentsAreLocked}
 						 onDragStartCapture={this.handleDragStart}
 				>
 					<div className='SB-moment-number'>
@@ -200,5 +203,4 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 			</div>
 		);
 	}
-
 }
