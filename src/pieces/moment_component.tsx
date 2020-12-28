@@ -16,7 +16,7 @@ interface MomentProps {
 	onDragOverCallback: any
 }
 
-interface MomentState { count: number, editIsInProgress: boolean }
+interface MomentState { count: number }
 
 /**
  * Objects of this class are responsible for displaying a Moment with which the user can interact.
@@ -26,20 +26,19 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 
 	private container: any;
 	private textArea: any;
+	private editIsInProgress = false;
 
 	constructor(props: any) {
 		super(props);
-		this.state = {count: 0, editIsInProgress: false};
+		this.state = {count: 0};
 		this.container = React.createRef();
-		this.textArea = React.createRef();
 		this.forceUpdateCallback = this.forceUpdateCallback.bind(this);
 		props.myMoment.setForceUpdateCallback(this.forceUpdateCallback);
 		this.handleClick = this.handleClick.bind(this);
 		// this.handleClickCapture = this.handleClickCapture.bind(this);
 		this.handleDelete = this.handleDelete.bind(this);
 		this.handleTitleEditBlur = this.handleTitleEditBlur.bind(this);
-		this.handleFocus = this.handleFocus.bind(this);
-		this.handleTitleClick = this.handleTitleClick.bind(this);
+		this.setTextArea = this.setTextArea.bind(this);
 		this.handleKeyDown = this.handleKeyDown.bind(this);
 		this.handleDragStart = this.handleDragStart.bind(this);
 		this.handleDragOver = this.handleDragOver.bind(this);
@@ -95,6 +94,8 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 	}
 
 	forceUpdateCallback() {
+		if( this.textArea && this.textArea.current && this.editIsInProgress)
+			this.handleTitleEditBlur( this.textArea.current.value);
 		this.setState({count: this.state.count + 1});
 	}
 
@@ -107,14 +108,9 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 		this.props.onClickCallback(this.props.myMoment);
 	}
 
-	handleFocus() {
-		if (this.textArea.current)
-			this.textArea.current.select();
-	}
-
 	handleTitleEditBlur(iTitle: string) {
 		this.props.onTitleBlurCallback(this.props.myMoment, iTitle);
-		this.setState({editIsInProgress: false});
+		this.editIsInProgress = false;
 	}
 
 	handleKeyDown(e: any) {
@@ -136,10 +132,6 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 		}
 	}
 
-	handleTitleClick() {
-		this.setState({editIsInProgress: true});
-	}
-
 	handleDragStart(e: any) {
 		e.dataTransfer.setData('text/plain', this.props.myMoment.ID);
 	}
@@ -154,6 +146,12 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 					(this.props.myMoment.momentNumber === 1 ? -5 : -10) : 5,
 				tIndicatorX = tMouseX < tMiddle ? tleft + tOffset : tleft + tRect.width + tOffset;
 		this.props.onDragOverCallback( this.props.myMoment, tIndicatorX, tSide);
+	}
+
+	// This is passed to us when the title editor's text area gets focus. This means we're starting a title edit.
+	setTextArea( iTextArea:any) {
+		this.textArea = iTextArea;
+		this.editIsInProgress = true;
 	}
 
 	public render() {
@@ -177,6 +175,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 			tMomentContainerName = `SB-moment-container ${tIsActive ? 'active' : ' '}${tIsNew ? ' start' : ''}`,
 			tTitleArea = (
 				<TitleEditor myMoment={this.props.myMoment}
+										 setTextAreaCallback={this.setTextArea}
 										 handleBlurCallback={this.handleTitleEditBlur}
 										 shouldSelectAll={tIsNew}
 										 canEdit={!tIsLocked}>

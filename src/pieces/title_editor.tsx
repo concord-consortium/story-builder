@@ -7,6 +7,7 @@ import {Moment} from "../models/moment";
 
 export class TitleEditor extends Component<{
 	myMoment: Moment,
+	setTextAreaCallback:any,
 	handleBlurCallback:any,
 	shouldSelectAll:boolean,
 	canEdit:boolean
@@ -19,6 +20,7 @@ export class TitleEditor extends Component<{
 		super(props);
 		this.textArea = React.createRef();
 		this.handleKeyDown = this.handleKeyDown.bind(this);
+		this.handleFocus = this.handleFocus.bind(this);
 	}
 
 	componentDidMount() {
@@ -34,7 +36,8 @@ export class TitleEditor extends Component<{
 	}
 
 	handleFocus() {
-
+		// Call the following so we can be sure our owner component has the correct ref and knows that an edit has started
+		this.props.setTextAreaCallback( this.textArea);
 	}
 
 	handleKeyDown(e:any) {
