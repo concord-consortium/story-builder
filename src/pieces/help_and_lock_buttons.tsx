@@ -19,7 +19,7 @@ export function HelpButton() {
 export function LockButton(props: { isLocked: boolean, clickCallback: any }) {
 	const state = props.isLocked ? 'lock' : 'unlock',
 				className = `SB-${state}-default`,
-				title = props.isLocked ? `Current locked. Moments will not change. Click to unlock.` :
+				title = props.isLocked ? `Currently locked. Moments will not change. Click to unlock.` :
 				`Currently unlocked. Click to prevent changes to moments.`;
 	return (
 		<div className='SB-button'

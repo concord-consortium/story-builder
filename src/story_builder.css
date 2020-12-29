@@ -79,7 +79,7 @@ Buttons, including the help button, use this
  */
 .SB-story-area {
   display: flex;
-  padding: 5px 12px 5px 5px;
+  padding: 5px 32px 5px 5px;
   height: 100%;
   margin: 0;
   border-radius: 6px;
@@ -127,7 +127,7 @@ Buttons, including the help button, use this
   border: solid 2px #d6d6d6;
   background-color: white;
   height: 55%;
-  /*width: var(--moment-width);*/
+  overflow: hidden;
   z-index: 1;
 }
 .SB-moment:hover {

@@ -6,7 +6,7 @@ import {MomentComponent} from "./moment_component";
 import {Dialog} from "./dialog";
 import {EmptyMoment} from "./empty_moment";
 
-export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
+export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea, forceUpdateCallback:any },
 	{ mode:string, count: number, dialogState:any | null }> {
 
 	private myMomentsManager: MomentsManager;
@@ -36,7 +36,8 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea },
 	}
 
 	refresh() {
-		this.setState({count: this.state.count + 1});
+		this.props.forceUpdateCallback();
+		// this.setState({count: this.state.count + 1});
 	}
 
 	onMomentClick(moment: Moment) {

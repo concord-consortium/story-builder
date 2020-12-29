@@ -5,13 +5,14 @@ import {HelpButton, LockButton} from "./help_and_lock_buttons";
 import {StoryAreaComponent} from "./story_area_component"
 import {StoryBuilder} from "../models/story_builder";
 
-class StoryBuilderComponent extends Component<{},{locked:boolean}> {
+class StoryBuilderComponent extends Component<{},{locked:boolean, count:number}> {
   private storyBuilder:StoryBuilder | undefined;
 
   constructor(props:any) {
     super(props);
-    this.state = {locked: false}
+    this.state = {locked: false, count: 0}
     this.toggleLock = this.toggleLock.bind( this);
+    this.doForceUpdate = this.doForceUpdate.bind( this);
   }
 
   public async UNSAFE_componentWillMount() {
@@ -24,6 +25,10 @@ class StoryBuilderComponent extends Component<{},{locked:boolean}> {
       this.setState({locked: this.storyBuilder.storyArea.isLocked});
   }
 
+  doForceUpdate() {
+    this.setState({count: this.state.count + 1});
+  }
+
   toggleLock() {
     if( this.storyBuilder) {
       let tLocked = !this.storyBuilder.storyArea.isLocked;
@@ -33,6 +38,7 @@ class StoryBuilderComponent extends Component<{},{locked:boolean}> {
   }
 
   public render() {
+    let this_ = this;
     if(!(this.storyBuilder && this.storyBuilder.storyArea))
       return '';
     else
@@ -44,7 +50,10 @@ class StoryBuilderComponent extends Component<{},{locked:boolean}> {
               isLocked={this.storyBuilder.storyArea.isLocked}
               clickCallback={this.toggleLock}/>
           </div>
-          <StoryAreaComponent myStoryArea={this.storyBuilder.storyArea}/>
+          <StoryAreaComponent
+            myStoryArea={this.storyBuilder.storyArea}
+            forceUpdateCallback={this_.doForceUpdate}
+          />
         </div>
       );
   }

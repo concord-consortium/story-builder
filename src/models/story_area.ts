@@ -358,11 +358,18 @@ export class StoryArea {
 				//  whenever you're going from a "new" moment, you must save its state OR
 				if( objectIsEmpty(this.momentsManager.srcMoment.codapState)) {
 					this.saveStateInSrcMoment = true;
-					this.requestDocumentState();	// When received it will be saved in source moment
+					await this.requestDocumentState();	// When received it will be saved in source moment
+				}
+				else if( objectIsEmpty(this.momentsManager.dstMoment.codapState)) {
+					this.saveStateInDstMoment = true;
+					await this.requestDocumentState();	// When received it will be saved in dest moment
+				}
+				else {
+					await this.matchCODAPStateToMoment(this.momentsManager.dstMoment);
 				}
 				this.momentsManager.setCurrentMoment(this.momentsManager.dstMoment);
-				await this.matchCODAPStateToMoment(this.momentsManager.dstMoment);
 				await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.dstMoment);
+				this.forceComponentUpdate();
 			}
 			else {
 				// There are changes so we have to set up for asynchronous feedback from user
