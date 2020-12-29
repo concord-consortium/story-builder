@@ -122,6 +122,7 @@ Buttons, including the help button, use this
 
 .SB-moment {
   position: relative;
+  top: 1px;
   padding: 0 3px 3px 0;
   border-radius: 5px;
   border: solid 2px #d6d6d6;
@@ -135,6 +136,7 @@ Buttons, including the help button, use this
 }
 
 .SB-moment.active {
+  top: 7px;
   border-color: var(--teal-dark);
   background-color: rgba(114, 191, 202, 0.1);
 }
@@ -194,8 +196,8 @@ Buttons, including the help button, use this
 
 .SB-delete-area{
   position: relative;
-  margin-top: -9px;
-  right: -14px; /* to position button just outside container*/
+  margin-top: -6px;
+  right: -11px; /* to position button just outside container*/
 }
 
 .SB-control-area {
