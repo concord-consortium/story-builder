@@ -254,6 +254,12 @@ export class StoryArea {
 		else {	// for backward compatibility
 			this.momentsManager.restoreFromStorage( iStorage);
 		}
+		// Because the user might have saved the document without saving state in the current moment,
+		// we do that now.
+		this.saveStateInSrcMoment = true;
+		this.momentsManager.srcMoment = this.momentsManager.currentMoment;
+		this.requestDocumentState();
+
 		this.forceComponentUpdate();
 	}
 
