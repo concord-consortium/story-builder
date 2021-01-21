@@ -9,8 +9,27 @@ import {
 
 export class StoryArea {
 
+	private stateStrings = {
+		qClickAnotherMoment: {
+			explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?'
+		},
+		qDupNotLastMoment: {
+			prompt: 'Save changes before creating Moment %@?',
+			explanation: `You have made changes to Moment %@. Would you like to save those changes to both Moments %@
+				 and %@ or only to the new Moment %@?`,
+			labeledCallbacks: [
+				{ label: 'Discard'},
+				{ label: 'Moments %@ and %@'},
+				{ label: 'Only Moment %@'}
+			]
+		},
+		qRevert: {
+			explanation: `Would you like to discard the changes you made to Moment %@ (and revert to the state it was
+				in before you made changes)?`,
+		}
+	};
+
 	public momentsManager:MomentsManager = new MomentsManager();
-	public dialogStates:any;
 	public isLocked:boolean = false;
 	private restoreInProgress = false;
 	private waitingForDocumentState = false;
@@ -37,18 +56,17 @@ export class StoryArea {
 		this.handleOnlyNew = this.handleOnlyNew.bind(this);
 		this.handleSaveToBoth = this.handleSaveToBoth.bind(this);
 
-		this.dialogStates = this.setupDialogStates();
-
 		codapInterface.on('notify', '*', '', this.handleNotification);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
 	}
 
 	setupDialogStates():any {
+		const template = this.stateStrings;
 		return {
 			qClickAnotherMoment: {
 				prompt: 'Save or discard changes?',
-				explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?',
+				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
 					{ label: 'Cancel',
 						callback: this.handleCancel},
@@ -59,22 +77,20 @@ export class StoryArea {
 				]
 			},
 			qDupNotLastMoment: {
-				prompt: 'Save changes before creating Moment %@?',
-				explanation: `You have made changes to Moment %@. Would you like to save those changes to both Moments %@
-				 and %@ or only to the new Moment %@?`,
+				prompt: template.qDupNotLastMoment.prompt.slice(),
+				explanation: template.qDupNotLastMoment.explanation.slice(),
 				labeledCallbacks: [
 					{ label: 'Discard',
 						callback: this.handleDiscard},
-					{ label: 'Moments %@ and %@',
+					{ label: template.qDupNotLastMoment.labeledCallbacks[1].label.slice(),
 						callback: this.handleSaveToBoth},
-					{ label: 'Only Moment %@',
+					{ label: template.qDupNotLastMoment.labeledCallbacks[2].label.slice(),
 						callback: this.handleOnlyNew}
 				]
 			},
 			qRevert: {
 				prompt: 'Discard changes?',
-				explanation: `Would you like to discard the changes you made to Moment %@ (and revert to the state it was
-				in before you made changes)?`,
+				explanation: template.qRevert.explanation.slice(),
 				labeledCallbacks: [
 					{ label: 'Cancel',
 						callback: this.handleCancel},
@@ -340,6 +356,9 @@ export class StoryArea {
 			console.log('pingCallback not initialized');
 			return;
 		}
+		if( iMoment === this.momentsManager.currentMoment) {
+			return;	// We're not going to a different moment
+		}
 		if (this.momentsManager.currentMoment) {
 			let dialogMode = '';
 			this.momentsManager.srcMoment = this.momentsManager.currentMoment;
@@ -379,7 +398,7 @@ export class StoryArea {
 			}
 			else {
 				// There are changes so we have to set up for asynchronous feedback from user
-				let tChosenState = this.dialogStates[dialogMode],
+				let tChosenState = this.setupDialogStates()[dialogMode],
 						tSrcMoment = this.momentsManager.srcMoment;
 				tChosenState.srcMoment = this.momentsManager.srcMoment;
 				tChosenState.dstMoment = this.momentsManager.dstMoment;

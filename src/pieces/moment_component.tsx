@@ -190,7 +190,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 				{tDeleteButton}
 				<div className={tMomentClassName + (tIsChanged && !this.props.momentsAreLocked ? ' changed' : '')}
 						 onClick={this.handleClick}
-						 draggable={!this.props.momentsAreLocked}
+						 draggable={!this.editIsInProgress && !this.props.momentsAreLocked}
 						 onDragStartCapture={this.handleDragStart}
 				>
 					<div className='SB-moment-number'>
