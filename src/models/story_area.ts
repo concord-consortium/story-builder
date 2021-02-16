@@ -184,7 +184,7 @@ export class StoryArea {
 		this.momentsManager.currentMoment = tMoment;
 		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
 
-		this.doBeginTransitionToDifferentMoment( tMoment);
+		await this.doBeginTransitionToDifferentMoment( tMoment);
 
 		this.forceComponentUpdate();     //  make the moment appear on the screen in the bar
 	}
@@ -192,14 +192,16 @@ export class StoryArea {
 	/**
 	 * Responsible for handling the various notifications we receive
 	 * when the user makes an undoable action,
-	 * and also when CODAP respomds to our requests to move to a different codapState
+	 * and also when CODAP responds to our requests to move to a different codapState
 	 *
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
+		const kIgnorableOperations = ['selectCases'/*, 'change map coordinates'*/];
 		if( this.isLocked)
 			return;	// because we don't respond to notifications
-		if (iCommand.resource !== 'undoChangeNotice' && iCommand.values.operation !== 'selectCases') {
+		if (iCommand.resource !== 'undoChangeNotice' &&
+			kIgnorableOperations.indexOf( iCommand.values.operation) === -1) {
 			//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
 			if (iCommand.values.operation === 'newDocumentState') {
 				this.receiveNewDocumentState(iCommand);
@@ -274,12 +276,12 @@ export class StoryArea {
 		// we do that now.
 		this.saveStateInSrcMoment = true;
 		this.momentsManager.srcMoment = this.momentsManager.currentMoment;
-		this.requestDocumentState();
+		// await this.requestDocumentState();
 
 		this.forceComponentUpdate();
 	}
 
-	getPluginState(): any {
+	getPluginState() {
 		if (this.waitingForDocumentState) {
 			return {};
 		} else {
@@ -300,7 +302,10 @@ export class StoryArea {
 	 */
 	private async requestDocumentState() {
 		this.waitingForDocumentState = true;
-		await codapInterface.sendRequest({action: 'get', resource: 'document'});
+		await codapInterface.sendRequest({action: 'get', resource: 'document'})
+			.catch(()=>{
+				this.waitingForDocumentState = false;
+			});
 	}
 
 	/**
@@ -440,7 +445,7 @@ export class StoryArea {
 */
 		} else {
 			//  happens when there is no current moment; so make a new one.
-			this.makeInitialMomentAndTextComponent()
+			await this.makeInitialMomentAndTextComponent()
 		}
 	}
 
@@ -547,7 +552,7 @@ export class StoryArea {
 			await this.requestDocumentState();
 			// console.log(`Explicitly saved [${this.momentsManager.currentMoment.title}] in saveCurrentMoment`);
 		} else {
-			alert(`Hmmm. There is no current moment to save`);
+			alert(`There is no current moment to save`);
 		}
 	}
 

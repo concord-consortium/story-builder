@@ -22,18 +22,18 @@ class StoryBuilderComponent extends Component<{},{locked:boolean, count:number}>
 
   componentDidMount() {
     if( this.storyBuilder)
-      this.setState({locked: this.storyBuilder.storyArea.isLocked});
+      this.setState({locked: this.storyBuilder.storyArea.isLocked, count: this.state.count});
   }
 
   doForceUpdate() {
-    this.setState({count: this.state.count + 1});
+    this.setState({count: this.state.count + 1, locked: this.state.locked});
   }
 
   toggleLock() {
     if( this.storyBuilder) {
       let tLocked = !this.storyBuilder.storyArea.isLocked;
       this.storyBuilder.storyArea.isLocked = tLocked;
-      this.setState({locked: tLocked});
+      this.setState({locked: tLocked, count: this.state.count});
     }
   }
 
