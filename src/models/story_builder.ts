@@ -13,7 +13,7 @@ export class StoryBuilder {
 
 	async initialize() {
 		const kPluginName = "Story Builder";
-		const kVersion = "0.73";
+		const kVersion = "0.74";
 		const kInitialDimensions = {
 			width: 800,
 			height: 130

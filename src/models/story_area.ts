@@ -197,9 +197,11 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
+		const kIgorableOperations = ['selectCases', 'change map coordinates'];
 		if( this.isLocked)
 			return;	// because we don't respond to notifications
-		if (iCommand.resource !== 'undoChangeNotice' && iCommand.values.operation !== 'selectCases') {
+		if (iCommand.resource !== 'undoChangeNotice' &&
+			kIgorableOperations.indexOf( iCommand.values.operation) === -1) {
 			//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
 			if (iCommand.values.operation === 'newDocumentState') {
 				this.receiveNewDocumentState(iCommand);
@@ -274,7 +276,7 @@ export class StoryArea {
 		// we do that now.
 		this.saveStateInSrcMoment = true;
 		this.momentsManager.srcMoment = this.momentsManager.currentMoment;
-		this.requestDocumentState();
+		// await this.requestDocumentState();
 
 		this.forceComponentUpdate();
 	}
@@ -300,7 +302,10 @@ export class StoryArea {
 	 */
 	private async requestDocumentState() {
 		this.waitingForDocumentState = true;
-		await codapInterface.sendRequest({action: 'get', resource: 'document'});
+		codapInterface.sendRequest({action: 'get', resource: 'document'})
+			.catch(()=>{
+				this.waitingForDocumentState = false;
+			});
 	}
 
 	/**
