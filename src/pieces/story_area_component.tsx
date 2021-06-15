@@ -60,9 +60,9 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea, forc
 
 	onStoryAreaPing( iDialogState:any) {
 		if( !iDialogState || iDialogState.ping === 'normal')
-			this.setState({mode: 'normal'});
+			this.setState({mode: 'normal', count: this.state.count, dialogState: this.state.dialogState});
 		else {
-			this.setState( { mode: 'dialog', dialogState: iDialogState});
+			this.setState( { mode: 'dialog', dialogState: iDialogState, count: this.state.count});
 		}
 	}
 
@@ -136,7 +136,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea, forc
 		}
 
 		function dialog(iMode:string) {
-			if (iMode === 'dialog' && !this_.props.myStoryArea.isLocked) {
+			if (iMode === 'dialog' /*&& !this_.props.myStoryArea.isLocked*/) {
 				return (<Dialog dialogState={this_.state.dialogState}> </Dialog>);
 			}
 			else return '';

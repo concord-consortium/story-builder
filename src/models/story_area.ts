@@ -26,6 +26,9 @@ export class StoryArea {
 		qRevert: {
 			explanation: `Would you like to discard the changes you made to Moment %@ (and revert to the state it was
 				in before you made changes)?`,
+		},
+		qClickLock: {
+			explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?'
 		}
 	};
 
@@ -53,6 +56,8 @@ export class StoryArea {
 		this.handleCancel = this.handleCancel.bind(this);
 		this.handleDiscard = this.handleDiscard.bind(this);
 		this.handleSave = this.handleSave.bind(this);
+		this.handleSaveToLock = this.handleSaveToLock.bind(this);
+		this.handleDiscardToLock = this.handleDiscardToLock.bind(this);
 		this.handleOnlyNew = this.handleOnlyNew.bind(this);
 		this.handleSaveToBoth = this.handleSaveToBoth.bind(this);
 
@@ -98,6 +103,16 @@ export class StoryArea {
 						callback: this.handleDiscard}
 				]
 			},
+			qClickLock: {
+				prompt: 'Save or discard changes?',
+				explanation: template.qClickAnotherMoment.explanation.slice(),
+				labeledCallbacks: [
+					{ label: 'Discard',
+						callback: this.handleDiscardToLock},
+					{ label: 'Save',
+						callback: this.handleSaveToLock}
+				]
+			}
 		};
 	}
 
@@ -124,6 +139,16 @@ export class StoryArea {
 		this.pingCallback = iCallback;
 	}
 
+	toggleLock() {
+		this.isLocked = !this.isLocked;
+		let tSrcMoment = this.momentsManager.srcMoment
+		if( this.isLocked && this.changeCount !== 0 && tSrcMoment && this.pingCallback) {
+			// There are outstanding changes. User must decide now before moving on
+			let tChosenState = this.setupDialogStates()['qClickLock'];
+			tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber);
+			this.pingCallback(tChosenState);
+		}
+	}
 
 	setForceUpdateCallback( iCallback:Function) {
 		this.forceUpdateCallback = iCallback;
@@ -385,13 +410,10 @@ export class StoryArea {
 			this.saveStateInDstMoment = false;
 
 			if (dialogMode === '') {
-				//  whenever you're going from a "new" moment, you must save its state OR
-				if( objectIsEmpty(this.momentsManager.srcMoment.codapState)) {
-					this.saveStateInSrcMoment = true;
-					await this.requestDocumentState();	// When received it will be saved in source moment
-				}
-				else if( objectIsEmpty(this.momentsManager.dstMoment.codapState)) {
-					this.saveStateInDstMoment = true;
+				//  whenever you're going from a "new" moment, you must save its state
+				this.saveStateInSrcMoment = objectIsEmpty(this.momentsManager.srcMoment.codapState);
+				this.saveStateInDstMoment = objectIsEmpty(this.momentsManager.dstMoment.codapState);
+				if( this.saveStateInSrcMoment || this.saveStateInDstMoment) {
 					await this.requestDocumentState();	// When received it will be saved in dest moment
 				}
 				else {
@@ -483,6 +505,28 @@ export class StoryArea {
 		await this.matchCODAPStateToMoment(iDialogState.dstMoment);
 		await StoryArea.displayNarrativeAndTitleInTextBox(iDialogState.dstMoment);
 		this.momentsManager.setCurrentMoment( iDialogState.dstMoment);
+		this.pingToNormal();
+	}
+
+	/**
+	 * The user has made changes in the current moment and is about to lock. They have chosen to save
+	 * the current moment
+	 * @param iDialogState
+	 */
+	async handleSaveToLock( ) {
+		await this.saveCurrentMoment();
+		this.resetChangeCount();
+		this.pingToNormal();
+	}
+
+	/**
+	 * The user has made changes in the current moment and is about to lock. They have chosen to save
+	 * the current moment
+	 * @param iDialogState
+	 */
+	async handleDiscardToLock() {
+		console.log('handleDiscardToLock', this.momentsManager.currentMoment);
+		await this.matchCODAPStateToMoment( this.momentsManager.currentMoment);
 		this.pingToNormal();
 	}
 

@@ -31,9 +31,8 @@ class StoryBuilderComponent extends Component<{},{locked:boolean, count:number}>
 
   toggleLock() {
     if( this.storyBuilder) {
-      let tLocked = !this.storyBuilder.storyArea.isLocked;
-      this.storyBuilder.storyArea.isLocked = tLocked;
-      this.setState({locked: tLocked, count: this.state.count});
+      this.storyBuilder.storyArea.toggleLock();
+      this.setState({locked: this.storyBuilder.storyArea.isLocked, count: this.state.count});
     }
   }
 

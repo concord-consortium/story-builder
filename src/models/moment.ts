@@ -70,7 +70,7 @@ export class Moment {
 	setIsActive(iActive: boolean) {
 		this.myState = iActive ? 'active' : 'inactive';
 		if (!iActive) {
-			this.amIChanged = false;
+			this.setIsChanged(false);
 		}
 	}
 
