@@ -1,14 +1,19 @@
 /**
  * A Moment is the model that contains information that can be saved and restored.
  **/
+import {Delta} from "jsondiffpatch";
+
+export interface StateObject {contexts:{}[] | null}
+export interface DiffsObject {subIndex:number, diff:Delta}	// index is sub-ID of master data context
 
 export class Moment {
 	public ID: number = 0;
 	public momentNumber: number = 0;
 	public prev: Moment | null = null;
 	public next: Moment | null = null;
-	public codapState: object = {};
-	public title: string = "This is a nice new moment with lots of text";
+	public dcDiffs: {[index:number]: DiffsObject}; // index is dataContext ID
+	public codapState: StateObject = {contexts: null};
+	public title: string = "";
 	public created: Date = new Date();
 	public modified: Date = new Date();
 	public narrative: any = "";
@@ -20,6 +25,7 @@ export class Moment {
 	constructor(iID: number, iMomentNumber: number, iState?: string) {
 		this.ID = iID;
 		this.momentNumber = iMomentNumber;
+		this.dcDiffs = {};
 		if (iState)
 			this.myState = iState;
 		if( iState === 'new')
@@ -40,6 +46,7 @@ export class Moment {
 		return {
 			ID: this.ID,
 			codapState: this.codapState,
+			dcDiffs: this.dcDiffs,
 			title: this.title,
 			created: this.created,
 			narrative: this.narrative
@@ -49,6 +56,7 @@ export class Moment {
 	restoreFromStorage(iStorage: any) {
 		this.ID = iStorage.ID;
 		this.codapState = iStorage.codapState;
+		this.dcDiffs = iStorage.dcDiffs || {};
 		this.title = iStorage.title;
 		this.created = new Date(iStorage.created);
 		this.narrative = iStorage.narrative;
@@ -89,7 +97,7 @@ export class Moment {
 		return `ID: ${this.ID} title: [${this.title}] narrative: ${this.extractNarrative()}`;
 	}
 
-	setCodapState(iCodapState: object) {
+	setCodapState(iCodapState: StateObject) {
 		this.codapState = iCodapState;
 	}
 

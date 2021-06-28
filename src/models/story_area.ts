@@ -1,13 +1,18 @@
 import {MomentsManager} from "./moments-manager";
 import codapInterface from "../lib/CodapInterface";
-import {Moment} from "./moment";
+import {Moment, StateObject} from "./moment";
 import {
 	kNarrativeTextBoxName,
-	needNarrativeTextBox, objectIsEmpty,
-	putTextComponentInfoIntoCodapState
+	needNarrativeTextBox,
 } from "../utilities/utilities";
+import {kSBVersion} from "./story_builder";
 
 export class StoryArea {
+
+	private static stateObjectIsEmpty( iObject:any):boolean {
+		return !iObject || typeof iObject !== 'object' || Object.keys(iObject).length === 0 ||
+			Object.values(iObject).every((iValue: any)=> { return !iValue });
+	}
 
 	private stateStrings = {
 		qClickAnotherMoment: {
@@ -41,6 +46,7 @@ export class StoryArea {
 	private changeCount = 0;
 	private narrativeBoxID: number = 0;
 	private justMadeInitialMomentAndText = false;
+	private restoringCodapStateInProgress = false;
 	private pingCallback:Function | null = null;
 	private forceUpdateCallback:Function | null = null;
 
@@ -123,7 +129,6 @@ export class StoryArea {
 		 */
 		let theID = await needNarrativeTextBox();
 		if (theID >= 0) {   //  there is a text box with a nonzero ID
-			console.log(`StoryArea constructor: initial text box found with ID ${theID}`);
 			this.narrativeBoxID = theID;
 		} else {
 			if (!this.momentsManager.startingMoment) {
@@ -168,7 +173,7 @@ export class StoryArea {
 	 * Also called if user makes a new moment and there are none currently.
 	 */
 	async makeInitialMomentAndTextComponent(): Promise<void> {
-		const tMoment = this.momentsManager.makeNewMomentUsingCodapState({});   //  the unsaved moment has no state yet
+		const tMoment = this.momentsManager.makeNewMomentUsingCodapState({contexts:[]});   //  the unsaved moment has no state yet
 
 		//  make initial text box
 		const tNarrativeID: number = await needNarrativeTextBox()
@@ -222,71 +227,73 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
-		const kIgnorableOperations = ['selectCases'/*, 'change map coordinates'*/];
+		const kIgnorableOperations = [/*'selectCases'/*, 'change map coordinates'*/];
 		if( this.isLocked)
 			return;	// because we don't respond to notifications
-		if (iCommand.resource !== 'undoChangeNotice' &&
-			kIgnorableOperations.indexOf( iCommand.values.operation) === -1) {
-			//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
-			if (iCommand.values.operation === 'newDocumentState') {
-				this.receiveNewDocumentState(iCommand);
-			} else if (iCommand.values.operation === 'titleChange') {
-				const textBoxComponentResourceString = `component[${this.narrativeBoxID}]`;
-				if (iCommand.resource === textBoxComponentResourceString) {
-					console.log(`TITLE changed to "${iCommand.values.to}... change count is ${this.changeCount}"`);
-					this.momentsManager.setNewTitle(iCommand.values.to);
-					this.forceComponentUpdate();
+		if (iCommand.resource !== 'undoChangeNotice' /*&&
+			kIgnorableOperations.indexOf( iCommand.values.operation) === -1*/) {
+			if( !this.restoringCodapStateInProgress) {
+				//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
+				if (iCommand.values.operation === 'newDocumentState') {
+					this.receiveNewDocumentState(iCommand);
+				} else if (iCommand.values.operation === 'titleChange') {
+					const textBoxComponentResourceString = `component[${this.narrativeBoxID}]`;
+					if (iCommand.resource === textBoxComponentResourceString) {
+						console.log(`TITLE changed to "${iCommand.values.to}... change count is ${this.changeCount}"`);
+						this.momentsManager.setNewTitle(iCommand.values.to);
+						this.forceComponentUpdate();
+					}
+				} else if (iCommand.values.operation === 'commitEdit' &&
+					iCommand.values.id === this.narrativeBoxID) {
+					this.momentsManager.setNewNarrative(iCommand.values.text);
+				} else if (!(this.justMadeInitialMomentAndText || this.restoreInProgress)) {
+					this.momentsManager.markCurrentMomentAsChanged(true);
+					this.changeCount++;
+				} else {
+					this.justMadeInitialMomentAndText = false;
 				}
-			} else if (iCommand.values.operation === 'commitEdit' &&
-				iCommand.values.id === this.narrativeBoxID) {
-				this.momentsManager.setNewNarrative(iCommand.values.text);
-			} else if (!(this.justMadeInitialMomentAndText || this.restoreInProgress)) {
-				this.momentsManager.markCurrentMomentAsChanged(true);
-				this.changeCount++;
-			} else {
-				this.justMadeInitialMomentAndText = false;
 			}
+			this.restoringCodapStateInProgress = false;
 		}
 	}
 
 	private async matchCODAPStateToMoment(iMoment: Moment | null) {
 		const newState = (iMoment) ? iMoment.codapState : null;
 		const tMomentID = (iMoment) ? iMoment.ID : "null";  //  for catch error reporting
+		if( iMoment && newState) {
+			let tFullState = this.momentsManager.patchDataContexts(iMoment, newState);
 
-		await this.restoreCodapState(newState)
-			.catch(() => console.log(`••• caught matching CODAP state to moment [${tMomentID}]`));
-		if( iMoment)
+			await this.restoreCodapState(tFullState)
+				.catch(() => console.log(`••• caught matching CODAP state to moment [${tMomentID}]`));
 			iMoment.setIsChanged(false);
-		this.resetChangeCount();
+			this.resetChangeCount();
+			this.restoringCodapStateInProgress = true;
+		}
 	}
 
 	/**
 	 * Asks CODAP to restore itself to the given state.
 	 * Note: sets restoreInProgress while it's running and resolving its promises
-	 * @param iCodapState    the state to restore to; this is the potentially large JSON object
+	 * @param iFullCodapState the state to restore to. It contains patched dataContexts
 	 */
-	private async restoreCodapState(iCodapState: object | null): Promise<any> {
-		let out: any = null;
+	private async restoreCodapState(iFullCodapState: StateObject | null) {
 		console.log(`begin restore state`);
-		if (!objectIsEmpty(iCodapState)) {
-			let this_ = this;
+		if (!StoryArea.stateObjectIsEmpty(iFullCodapState)) {
 			this.restoreInProgress = true;
-			out = await codapInterface.sendRequest({
+			await codapInterface.sendRequest({
 				action: 'update',
 				resource: 'document',
-				values: iCodapState
+				values: iFullCodapState
 			}).catch(() => {
 				console.log(`•••  caught restoring CODAP state`)
 			})
 
 			console.log('end restore state');
-			this_.restoreInProgress = false;
+			this.restoreInProgress = false;
 			this.resetChangeCount();
 		} else {
 			console.log(`no state to restore`);
 		}
-
-		return out;
 	}
 
 	restorePluginState(iStorage:any) {
@@ -301,7 +308,6 @@ export class StoryArea {
 		// we do that now.
 		this.saveStateInSrcMoment = true;
 		this.momentsManager.srcMoment = this.momentsManager.currentMoment;
-		// await this.requestDocumentState();
 
 		this.forceComponentUpdate();
 	}
@@ -314,6 +320,7 @@ export class StoryArea {
 				success: true,
 				values: {
 					isLocked: this.isLocked,
+					fromVersion: kSBVersion,
 					momentsStorage: this.momentsManager.createStorage()
 				}
 			};
@@ -344,10 +351,12 @@ export class StoryArea {
 			// console.log(`received a document state we were waiting for`);
 
 			if (this.saveStateInSrcMoment) {
-				StoryArea.matchMomentToCODAPState(this.momentsManager.srcMoment, iCommand.values.state, false);
+				this.momentsManager.matchMomentToCODAPState(this.momentsManager.srcMoment,
+					iCommand.values.state, false);
 			}
 			if (this.saveStateInDstMoment) {
-				StoryArea.matchMomentToCODAPState(this.momentsManager.dstMoment, iCommand.values.state, true);
+				this.momentsManager.matchMomentToCODAPState(this.momentsManager.dstMoment,
+					iCommand.values.state, true);
 			}
 			this.resetChangeCount();
 		} else {
@@ -401,7 +410,7 @@ export class StoryArea {
 				if( this.momentsManager.srcMoment !== this.momentsManager.getLastMoment() &&
 					this.changeCount !== 0)
 					dialogMode = 'qDupNotLastMoment';
-				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({});
+				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({contexts:null});
 			}
 
 			//  We are now guaranteed that srcMoment and dstMoment are Moments, not null.
@@ -411,8 +420,8 @@ export class StoryArea {
 
 			if (dialogMode === '') {
 				//  whenever you're going from a "new" moment, you must save its state
-				this.saveStateInSrcMoment = objectIsEmpty(this.momentsManager.srcMoment.codapState);
-				this.saveStateInDstMoment = objectIsEmpty(this.momentsManager.dstMoment.codapState);
+				this.saveStateInSrcMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.srcMoment.codapState);
+				this.saveStateInDstMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.dstMoment.codapState);
 				if( this.saveStateInSrcMoment || this.saveStateInDstMoment) {
 					await this.requestDocumentState();	// When received it will be saved in dest moment
 				}
@@ -455,7 +464,7 @@ export class StoryArea {
 				changes: this.changeCount})) {
 				//  there have been changes, so we will save.
 				this.saveStateInSrcMoment = true;
-			} else if (!objectIsEmpty(this.momentsManager.dstMoment.codapState)
+			} else if (!StoryArea.stateObjectIsEmpty(this.momentsManager.dstMoment.codapState)
 				&& this.pingCallback({ping: 'qChangesStayOnScreen',
 					moment: this.momentsManager.dstMoment})) {
 				//  so we're NOT saving changes in the source, but do we want them in the destination
@@ -511,7 +520,6 @@ export class StoryArea {
 	/**
 	 * The user has made changes in the current moment and is about to lock. They have chosen to save
 	 * the current moment
-	 * @param iDialogState
 	 */
 	async handleSaveToLock( ) {
 		await this.saveCurrentMoment();
@@ -522,7 +530,6 @@ export class StoryArea {
 	/**
 	 * The user has made changes in the current moment and is about to lock. They have chosen to save
 	 * the current moment
-	 * @param iDialogState
 	 */
 	async handleDiscardToLock() {
 		console.log('handleDiscardToLock', this.momentsManager.currentMoment);
@@ -559,31 +566,6 @@ export class StoryArea {
 		await this.doBeginTransitionToDifferentMoment( iDialogState.dstMoment);
 */
 		this.pingToNormal();
-	}
-
-	/**
-	 * Utility to update the given moment with the given state.
-	 *
-	 * @param iMoment
-	 * @param iState
-	 * @param preserveMomentInfo    should the info in the MomentModel (title and narrative)
-	 *                              be stored in the codapState as part of the text component?
-	 *
-	 */
-	private static async matchMomentToCODAPState(iMoment: Moment | null, iState: object, preserveMomentInfo: boolean): Promise<void> {
-		if (iMoment instanceof Moment) {
-			// console.log(`Setting [${iMoment.title}] to match a state`);
-			iMoment.setCodapState(iState);
-			iMoment.modified = new Date();
-			iMoment.setIsChanged(false);	// because we've saved state
-
-			if (preserveMomentInfo) {
-				putTextComponentInfoIntoCodapState({
-					title: iMoment.title,
-					narrative: iMoment.narrative
-				}, iMoment.codapState);
-			}
-		}
 	}
 
 	/**

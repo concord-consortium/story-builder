@@ -1,0 +1,4 @@
+npm run build
+rm -rf story_builder_v8
+mv build story_builder_v8
+rsync -av story_builder_v8 codap-server.concord.org:public_html

@@ -2,13 +2,23 @@
  * The MomentManager handles creation, save, restore, etc for moments, but NOT display.
  * 	(Used to be Timeline)
  **/
-import {Moment} from "./moment";
+import {Moment, StateObject} from "./moment";
+import {DiffPatcher, Delta} from "jsondiffpatch";
+import sizeof from "object-sizeof";
+import {putTextComponentInfoIntoCodapState} from "../utilities/utilities";
 
 export class MomentsManager {
 	public currentMoment: Moment | null = null;
 	public dstMoment: Moment | null = null;
 	public srcMoment: Moment | null = null;
 	public startingMoment: Moment | null = null;
+	private diffPatcher = new DiffPatcher({
+		objectHash: function(obj, index) {
+			// try to find an id property, otherwise just use the index in the array
+			return obj.id || '$$index:' + index;
+		}
+	});
+	private masterContextsObject: { [index:number]: {[index:number]:object}} = {};	// First index is context ID, second index is subIndex
 	private nextMomentID: number = 0;
 	private kInitialJSONText = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"What did you do? Why did you do it?"}]},{"type":"paragraph","children":[{"text":"¿Qué hizo? ¿Por qué?"}]}],"objTypes":{"paragraph":"block"}}}`;
 	private kInitialJSONText_start = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"This is the beginning of your data story."}]},{"type":"paragraph","children":[{"text":"Esto es el comienzo de su cuento de datos."}]}],"objTypes":{"paragraph":"block"}}}`;
@@ -20,6 +30,128 @@ export class MomentsManager {
 		return (this.currentMoment) ? this.currentMoment.title : "";
 	}
 
+	patchDataContexts(iMoment:Moment, iPartialState:StateObject):StateObject {
+		const tMasterContexts = this.masterContextsObject;
+		let tPatchedState = this.diffPatcher.clone(iPartialState),
+			this_ = this;
+		tPatchedState.contexts = [];
+		if( iMoment && iMoment.dcDiffs && iPartialState) {
+			Object.keys(iMoment.dcDiffs).forEach((iID)=>{
+				let tSubIndex = iMoment.dcDiffs[Number(iID)].subIndex,
+					tPatchedContext = this_.diffPatcher.clone(tMasterContexts[Number(iID)][tSubIndex]),
+					tPatch = iMoment.dcDiffs[Number(iID)].diff;
+				// @ts-ignore
+				if( Object.keys(tPatch).length > 0)
+					this_.diffPatcher.patch(tPatchedContext, <Delta>tPatch);
+				// @ts-ignore
+				tPatchedState.contexts.push( tPatchedContext);
+				let tPatchSize = sizeof(tPatch),
+					tContextSize = sizeof(tPatchedContext);
+				console.log(`patchDataContexts: Patch of size ${tPatchSize} is ${Number((tPatchSize / tContextSize).toFixed(5))} of context size of ${tContextSize}`);
+			})
+		}
+		return tPatchedState;
+	}
+
+	processDataContexts(iMoment:Moment, iNewCodapState:StateObject) {
+
+		function findOrCreateOptimalMaster( iNewContext:any, iCurrentSubIndex:number, iContextSize:number, iFoundPatchSize:number) {
+			/**
+			 * We've already determined that there is a master context with the given subIndex, but the patch required
+			 * is more than kThreshold in size of that master context.
+			 * Our task is first to determine if there is another master context (with a different subIndex) such that
+			 * the required patch is less than kThreshold in size of that master context. If we find one, we use it.
+			 * If we don't find one, we store the new context as a master context with a new subIndex.
+			 */
+			let tID = iNewContext.id,
+				tNewSubIndex = 0,
+				tExistingIndices:string[] = Object.keys(this_.masterContextsObject[tID]),
+				tFoundGoodMaster = false,
+				tBestSubIndex = -1,
+				tBestFoundPatchSize = iFoundPatchSize,
+				tBestPatch:Delta = {};
+			tExistingIndices.forEach(iSubIndex=>{
+				if( Number(iSubIndex) !== iCurrentSubIndex) {
+					let tPatch = this_.diffPatcher.diff(this_.masterContextsObject[tID][Number(iSubIndex)], iNewContext),
+						tPatchSize = sizeof(tPatch);
+					if( !tPatch)
+						tPatch = {};
+					if( tPatchSize < tBestFoundPatchSize) {
+						tBestFoundPatchSize = tPatchSize;
+						tBestPatch = tPatch;
+						tFoundGoodMaster = tFoundGoodMaster || (tPatchSize / iContextSize <= kThreshold);
+						if( tFoundGoodMaster)
+							tBestSubIndex = Number(iSubIndex);
+					}
+				}
+			});
+			if( tFoundGoodMaster) {
+				console.log(`Found good master with subIndex ${tBestSubIndex} and size ${tBestFoundPatchSize}`);
+				iMoment.dcDiffs[tID] = { subIndex: tBestSubIndex, diff: tBestPatch}
+			}
+			else {
+				while (tExistingIndices.includes(String(tNewSubIndex))) {
+					tNewSubIndex++;
+				}
+				this_.masterContextsObject[tID][tNewSubIndex] = iNewContext;
+				iMoment.dcDiffs[tID] = {subIndex: tNewSubIndex, diff: {}};
+				console.log(`Installed new master context with subIndex ${tNewSubIndex}`);
+			}
+		}
+
+		const kThreshold = 0.5;	// If we encounter a patch that is more than this fraction of master size, make a new master
+		let this_ = this;
+		if( iNewCodapState) {
+			if (iNewCodapState.contexts) {
+				iNewCodapState.contexts.forEach((iContext:any) => {
+					let tMasterContext: any;
+					const kID = iContext.id,
+						tSubIndex = iMoment.dcDiffs[kID] ? iMoment.dcDiffs[kID].subIndex : 0;
+					if (!this_.masterContextsObject[kID]) {
+						this_.masterContextsObject[kID] = {0: iContext};
+						tMasterContext = iContext;
+					} else {	// We've already stored a master
+						tMasterContext = this_.masterContextsObject[kID][tSubIndex];
+					}
+					let tPatch = this_.diffPatcher.diff(tMasterContext, iContext);
+					let tPatchSize = sizeof(tPatch),
+						tContextSize = sizeof(iContext),
+						tFraction = tPatchSize / tContextSize;
+					console.log(`processDataContexts: Patch of size ${tPatchSize} and subIndex ${tSubIndex} is ${Number(tFraction.toFixed(5))} of context size of ${tContextSize}`);
+					if(!tPatch)
+						tPatch = {};
+					if( tFraction <= kThreshold)
+						iMoment.dcDiffs[kID] = { subIndex: tSubIndex, diff: tPatch};
+					else {
+						findOrCreateOptimalMaster( iContext, tSubIndex, tContextSize, tPatchSize);
+					}
+				});
+				iNewCodapState.contexts = [];
+			}
+		}
+	}
+
+	/**
+	 * Loop through all the master contexts, removing any no longer referenced by any of the moments
+	 */
+	removeUnusedMasterContexts() {
+		let tMasterContextsObject = this.masterContextsObject;
+		Object.keys(tMasterContextsObject).forEach((iID:string)=>{
+			let tContextsObject:{[index:number]:object | null} = tMasterContextsObject[Number(iID)];
+			Object.keys(tContextsObject).forEach((iSubIndex:string)=>{
+				let tFoundRef = false;
+				this.forEachMoment((iMoment:Moment)=>{
+					let tDiffsObject = iMoment.dcDiffs[Number(iID)];
+					tFoundRef = tFoundRef || tDiffsObject.subIndex === Number(iSubIndex);
+				});
+				if( !tFoundRef) {
+					// @ts-ignore
+					tContextsObject[iSubIndex] = null;
+				}
+			})
+		});
+	}
+
 	createStorage() {
 		let tMomentArray: {}[] = [],
 			tCurrMomentIndex = 0;
@@ -29,6 +161,7 @@ export class MomentsManager {
 			tMomentArray.push(iMoment.createStorage());
 		});
 		return {
+			masterContexts: this.masterContextsObject,
 			moments: tMomentArray,
 			nextMomentID: this.nextMomentID,
 			currentMomentIndex: tCurrMomentIndex,
@@ -41,6 +174,7 @@ export class MomentsManager {
 		this.startingMoment = null;
 		this.currentMoment = null;
 		if (iStorage) {
+			this.masterContextsObject = iStorage.masterContexts || {};
 			this.nextMomentID = iStorage.nextMomentID;
 		}
 
@@ -59,7 +193,35 @@ export class MomentsManager {
 			tCurrMoment = tMoment;
 			if (iStorage.currentMomentIndex === iIndex)
 				this_.setCurrentMoment(tMoment);
+			this_.processDataContexts(tMoment, tMoment.codapState);
 		})
+	}
+
+	/**
+	 * Utility to update the given moment with the given state.
+	 *
+	 * @param iMoment
+	 * @param iState	a fresh new state from CODAP. We must deal with any contexts it has
+	 * @param preserveMomentInfo    should the info in the MomentModel (title and narrative)
+	 *                              be stored in the codapState as part of the text component?
+	 *
+	 */
+	public matchMomentToCODAPState(iMoment: Moment | null, iState: StateObject, preserveMomentInfo: boolean) {
+
+		if (iMoment instanceof Moment) {
+			// console.log(`Setting [${iMoment.title}] to match a state`);
+			this.processDataContexts(iMoment, iState);
+			iMoment.setCodapState(iState);
+			iMoment.modified = new Date();
+			iMoment.setIsChanged(false);	// because we've saved state
+
+			if (preserveMomentInfo) {
+				putTextComponentInfoIntoCodapState({
+					title: iMoment.title,
+					narrative: iMoment.narrative
+				}, iMoment.codapState);
+			}
+		}
 	}
 
 	/**
@@ -164,6 +326,7 @@ export class MomentsManager {
 			iMoment.prev = null;
 		}
 		this.renumberMoments();
+		this.removeUnusedMasterContexts();
 	}
 
 	deleteCurrentMoment() {
@@ -172,7 +335,7 @@ export class MomentsManager {
 	}
 
 	duplicateCurrentMoment() {
-		let tNewMoment = this.makeNewMomentUsingCodapState({});
+		let tNewMoment = this.makeNewMomentUsingCodapState({contexts: null});
 		tNewMoment.setIsNew(true);
 	}
 
@@ -229,7 +392,7 @@ export class MomentsManager {
 	 *
 	 * @param iCodapState
 	 */
-	makeNewMomentUsingCodapState(iCodapState: object): Moment {
+	makeNewMomentUsingCodapState(iCodapState: StateObject): Moment {
 		let tNewMoment: Moment= new Moment(this.nextMomentID++, 0, 'new');
 		tNewMoment.setCodapState(iCodapState);
 

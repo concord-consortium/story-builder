@@ -62,7 +62,7 @@ export async function needNarrativeTextBox(): Promise<number> {
 	let need: number = -1;
 
 	const theMessage = {action: "get", resource: "componentList"};
-	const theResult: any = await codapInterface.sendRequest(theMessage)
+	await codapInterface.sendRequest(theMessage)
 		.catch((e) => {
 			console.log(`••• problem finding out about the component list——`, e);
 		})
@@ -80,8 +80,4 @@ export async function needNarrativeTextBox(): Promise<number> {
 			}
 		});
 	return need;
-}
-
-export function objectIsEmpty( iObject:any) {
-	return !iObject || typeof iObject !== 'object' || Object.keys(iObject).length === 0;
 }
