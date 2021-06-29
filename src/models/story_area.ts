@@ -202,11 +202,11 @@ export class StoryArea {
 				.catch((reason) => {
 					console.log(`••• problem creating the narrative text box because ${reason}`);
 				});
-			if (tResult.success) {
+			if (tResult && tResult.success) {
 				this.narrativeBoxID = tResult.values.id;
 			}
 
-			await this.saveCurrentMoment();
+			// await this.saveCurrentMoment();
 		}
 
 		//      at this point, `tMoment.codapState` is still null.
@@ -217,6 +217,7 @@ export class StoryArea {
 		await this.doBeginTransitionToDifferentMoment( tMoment);
 
 		this.forceComponentUpdate();     //  make the moment appear on the screen in the bar
+		await this.saveCurrentMoment();
 	}
 
 	/**

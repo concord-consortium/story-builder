@@ -48,6 +48,7 @@ export class Moment {
 			codapState: this.codapState,
 			dcDiffs: this.dcDiffs,
 			title: this.title,
+			amIChanged: this.amIChanged,
 			created: this.created,
 			narrative: this.narrative
 		}
@@ -58,6 +59,7 @@ export class Moment {
 		this.codapState = iStorage.codapState;
 		this.dcDiffs = iStorage.dcDiffs || {};
 		this.title = iStorage.title;
+		this.amIChanged = iStorage.amIChanged;
 		this.created = new Date(iStorage.created);
 		this.narrative = iStorage.narrative;
 
