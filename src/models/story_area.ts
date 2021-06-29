@@ -128,7 +128,7 @@ export class StoryArea {
 		 * otherwise the text box will not be in that Moment's codapState.
 		 */
 		let theID = await needNarrativeTextBox();
-		if (theID >= 0) {   //  there is a text box with a nonzero ID
+		if (theID >= 0) {   //  there is a text box
 			this.narrativeBoxID = theID;
 		} else {
 			if (!this.momentsManager.startingMoment) {
@@ -184,7 +184,6 @@ export class StoryArea {
 
 		if (tNarrativeID !== -1) {
 			this.narrativeBoxID = tNarrativeID;
-			console.log(`StoryArea.makeInitialMomentAndTextComponent: Text box id ${this.narrativeBoxID} found.`);
 
 		} else {
 			const theMessage = {
@@ -200,13 +199,14 @@ export class StoryArea {
 			};
 
 			const tResult: any = await codapInterface.sendRequest(theMessage)
-				.catch(() => {
-					console.log(`••• problem creating the narrative text box`)
+				.catch((reason) => {
+					console.log(`••• problem creating the narrative text box because ${reason}`);
 				});
 			if (tResult.success) {
 				this.narrativeBoxID = tResult.values.id;
-				console.log(`StoryArea.makeInitialMomentAndTextComponent: Text box id ${this.narrativeBoxID} created.`);
 			}
+
+			await this.saveCurrentMoment();
 		}
 
 		//      at this point, `tMoment.codapState` is still null.
@@ -230,6 +230,16 @@ export class StoryArea {
 		const kIgnorableOperations = [/*'selectCases'/*, 'change map coordinates'*/];
 		if( this.isLocked)
 			return;	// because we don't respond to notifications
+
+		// CODAP lets us know when it is in the process of updating so we can ignore those notifications
+		if( iCommand.resource === 'documentChangeNotice') {
+			if( iCommand.values.operation === 'updateDocumentBegun')
+				this.restoringCodapStateInProgress = true;
+			else if( iCommand.values.operation === 'updateDocumentEnded')
+				this.restoringCodapStateInProgress = false;
+			return;
+		}
+
 		if (iCommand.resource !== 'undoChangeNotice' /*&&
 			kIgnorableOperations.indexOf( iCommand.values.operation) === -1*/) {
 			if( !this.restoringCodapStateInProgress) {
@@ -253,7 +263,6 @@ export class StoryArea {
 					this.justMadeInitialMomentAndText = false;
 				}
 			}
-			this.restoringCodapStateInProgress = false;
 		}
 	}
 
@@ -264,10 +273,9 @@ export class StoryArea {
 			let tFullState = this.momentsManager.patchDataContexts(iMoment, newState);
 
 			await this.restoreCodapState(tFullState)
-				.catch(() => console.log(`••• caught matching CODAP state to moment [${tMomentID}]`));
+				.catch((reason) => console.log(`••• caught matching CODAP state to moment [${tMomentID}] because ${reason}`));
 			iMoment.setIsChanged(false);
 			this.resetChangeCount();
-			this.restoringCodapStateInProgress = true;
 		}
 	}
 
