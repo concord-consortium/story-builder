@@ -9,6 +9,11 @@ import {kSBVersion} from "./story_builder";
 
 export class StoryArea {
 
+	/**
+	 * Tests the given object, returning true if it is not an object or is an object with no values for any property
+	 * @param iObject
+	 * @private
+	 */
 	private static stateObjectIsEmpty( iObject:any):boolean {
 		return !iObject || typeof iObject !== 'object' || Object.keys(iObject).length === 0 ||
 			Object.values(iObject).every((iValue: any)=> { return !iValue });
@@ -205,11 +210,7 @@ export class StoryArea {
 			if (tResult && tResult.success) {
 				this.narrativeBoxID = tResult.values.id;
 			}
-
-			// await this.saveCurrentMoment();
 		}
-
-		//      at this point, `tMoment.codapState` is still null.
 
 		this.momentsManager.currentMoment = tMoment;
 		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
@@ -467,22 +468,6 @@ export class StoryArea {
 				}
 				this.pingCallback(tChosenState);
 			}
-/*
-			else if (this.pingCallback({ping: 'qSaveChanges',
-				moment: this.momentsManager.currentMoment,
-				changes: this.changeCount})) {
-				//  there have been changes, so we will save.
-				this.saveStateInSrcMoment = true;
-			} else if (!StoryArea.stateObjectIsEmpty(this.momentsManager.dstMoment.codapState)
-				&& this.pingCallback({ping: 'qChangesStayOnScreen',
-					moment: this.momentsManager.dstMoment})) {
-				//  so we're NOT saving changes in the source, but do we want them in the destination
-				this.saveStateInDstMoment = true;
-			} else {
-				//  we don't want to save the srcMoment. Nor in the dst.
-			}
-			this.requestDocumentState();
-*/
 		} else {
 			//  happens when there is no current moment; so make a new one.
 			await this.makeInitialMomentAndTextComponent()
