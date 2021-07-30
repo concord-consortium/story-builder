@@ -405,7 +405,7 @@ export class StoryArea {
 			console.log('pingCallback not initialized');
 			return;
 		}
-		if( iMoment === this.momentsManager.currentMoment) {
+		if(iMoment !== null && iMoment === this.momentsManager.currentMoment) {
 			return;	// We're not going to a different moment
 		}
 		if (this.momentsManager.currentMoment) {
