@@ -171,7 +171,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 				onDuplicateCallback={this.props.onDuplicateCallback}
 				onSaveCallback={this.props.onSaveCallback}
 				onRevertCallback={this.props.onRevertCallback}/> : null,
-			tMomentClassName = `SB-moment ${tIsActive ? 'active' : ''}`,
+			tMomentClassName = `SB-moment ${tIsActive ? 'active' : ''}${this.editIsInProgress ? ' hasFocus' : ''}`,
 			tMomentContainerName = `SB-moment-container ${tIsActive ? 'active' : ' '}${tIsNew ? ' start' : ''}`,
 			tTitleArea = (
 				<TitleEditor myMoment={this.props.myMoment}

@@ -145,6 +145,10 @@ Buttons, including the help button, use this
   background-color: rgba(114, 191, 202, 0.2);
 }
 
+.SB-moment.active.hasFocus{
+  background-color: white;
+}
+
 .SB-moment.changed {
   background-color: rgba(255, 252, 55, 0.2);
 }
@@ -181,7 +185,7 @@ Buttons, including the help button, use this
 .SB-title-editor:focus {
   background-color: white;
   outline: lightgray;
-  border: 2px solid lightgray;
+  /*border: 2px solid lightgray;*/
 }
 
 .SB-moment-number {
