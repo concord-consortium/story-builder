@@ -8,7 +8,7 @@ export function HelpButton() {
 	return (
 		<div className='SB-button'
 				 style={{right: 0} }>
-			<a href='https://codap.concord.org/~bfinzer/help_site/help_site.html' target='_blank'>
+			<a href='https://codap.concord.org/~bfinzer/help_site/help_site.html' rel="noreferrer" target='_blank'>
 			<img className= 'SB-help-default' alt='get help'
 					 title='Get some help about how to use Story Builder'
 					 /></a>

@@ -23,9 +23,6 @@ export class MomentsManager {
 	private kInitialJSONText = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"What did you do? Why did you do it?"}]},{"type":"paragraph","children":[{"text":"¿Qué hizo? ¿Por qué?"}]}],"objTypes":{"paragraph":"block"}}}`;
 	private kInitialJSONText_start = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"This is the beginning of your data story."}]},{"type":"paragraph","children":[{"text":"Esto es el comienzo de su cuento de datos."}]}],"objTypes":{"paragraph":"block"}}}`;
 
-	constructor() {
-	}
-
 	getCurrentMomentTitle(): string {
 		return (this.currentMoment) ? this.currentMoment.title : "";
 	}
@@ -42,7 +39,7 @@ export class MomentsManager {
 					tPatch = iMoment.dcDiffs[Number(iID)].diff;
 				// @ts-ignore
 				if( Object.keys(tPatch).length > 0)
-					this_.diffPatcher.patch(tPatchedContext, <Delta>tPatch);
+					this_.diffPatcher.patch(tPatchedContext, tPatch as Delta);
 				// @ts-ignore
 				tPatchedState.contexts.push( tPatchedContext);
 				let tPatchSize = sizeof(tPatch),

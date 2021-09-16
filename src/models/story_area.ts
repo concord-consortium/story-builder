@@ -229,7 +229,6 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
-		const kIgnorableOperations = [/*'selectCases'/*, 'change map coordinates'*/];
 		if( this.isLocked)
 			return;	// because we don't respond to notifications
 
