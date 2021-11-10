@@ -99,6 +99,7 @@ export class MomentsManager {
 		const kThreshold = 0.5;	// If we encounter a patch that is more than this fraction of master size, make a new master
 		let this_ = this;
 		if( iNewCodapState) {
+			// First we make sure all contexts in the new state are represented in this moment
 			if (iNewCodapState.contexts) {
 				iNewCodapState.contexts.forEach((iContext:any) => {
 					let tMasterContext: any;
@@ -123,6 +124,13 @@ export class MomentsManager {
 						findOrCreateOptimalMaster( iContext, tSubIndex, tContextSize, tPatchSize);
 					}
 				});
+				// Now we remove any references to contexts in the moment that are not present in the new state
+				const tNewContexts = iNewCodapState.contexts || []
+				Object.keys(iMoment.dcDiffs).forEach(iDiffID=>{
+					const tFoundContext = tNewContexts.find((iContext:any)=>iDiffID === iContext.id)
+					if(!tFoundContext)
+						delete iMoment.dcDiffs[Number(iDiffID)]
+				})
 				iNewCodapState.contexts = [];
 			}
 		}
@@ -139,14 +147,16 @@ export class MomentsManager {
 				let tFoundRef = false;
 				this.forEachMoment((iMoment:Moment)=>{
 					let tDiffsObject = iMoment.dcDiffs[Number(iID)];
-					tFoundRef = tFoundRef || tDiffsObject.subIndex === Number(iSubIndex);
+					tFoundRef = tFoundRef || (tDiffsObject && tDiffsObject.subIndex === Number(iSubIndex));
 				});
 				if( !tFoundRef) {
 					// @ts-ignore
-					tContextsObject[iSubIndex] = null;
+					delete tContextsObject[iSubIndex];
 				}
 			})
-		});
+			if(Object.keys(tContextsObject).length === 0)
+				delete tMasterContextsObject[Number(iID)]
+		})
 	}
 
 	createStorage() {
@@ -190,8 +200,8 @@ export class MomentsManager {
 			tCurrMoment = tMoment;
 			if (iStorage.currentMomentIndex === iIndex)
 				this_.setCurrentMoment(tMoment);
-			this_.processDataContexts(tMoment, tMoment.codapState);
 		})
+		this.removeUnusedMasterContexts()	// In case we get stored state that was created before we fixed some bugs
 	}
 
 	/**
@@ -218,6 +228,7 @@ export class MomentsManager {
 					narrative: iMoment.narrative
 				}, iMoment.codapState);
 			}
+			this.removeUnusedMasterContexts()
 		}
 	}
 
