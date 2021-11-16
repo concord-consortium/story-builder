@@ -234,11 +234,14 @@ export class StoryArea {
 
 		// CODAP lets us know when it is in the process of updating so we can ignore those notifications
 		if( iCommand.resource === 'documentChangeNotice') {
-			if( iCommand.values.operation === 'updateDocumentBegun')
+			if( iCommand.values.operation === 'updateDocumentBegun') {
 				this.restoringCodapStateInProgress = true;
-			else if( iCommand.values.operation === 'updateDocumentEnded')
+				return;
+			}
+			else if( iCommand.values.operation === 'updateDocumentEnded') {
 				this.restoringCodapStateInProgress = false;
-			return;
+				return;
+			}
 		}
 
 		if (iCommand.resource !== 'undoChangeNotice' /*&&
