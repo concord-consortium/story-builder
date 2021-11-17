@@ -432,7 +432,8 @@ export class StoryArea {
 
 			if (dialogMode === '') {
 				//  whenever you're going from a "new" moment, you must save its state
-				this.saveStateInSrcMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.srcMoment.codapState);
+				this.saveStateInSrcMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.srcMoment.codapState) ||
+					this.changeCount !== 0
 				this.saveStateInDstMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.dstMoment.codapState);
 				if( this.saveStateInSrcMoment || this.saveStateInDstMoment) {
 					await this.requestDocumentState();	// When received it will be saved in dest moment

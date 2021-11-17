@@ -127,7 +127,7 @@ export class MomentsManager {
 				// Now we remove any references to contexts in the moment that are not present in the new state
 				const tNewContexts = iNewCodapState.contexts || []
 				Object.keys(iMoment.dcDiffs).forEach(iDiffID=>{
-					const tFoundContext = tNewContexts.find((iContext:any)=>iDiffID === iContext.id)
+					const tFoundContext = tNewContexts.find((iContext:any)=>Number(iDiffID) === iContext.id)
 					if(!tFoundContext)
 						delete iMoment.dcDiffs[Number(iDiffID)]
 				})
