@@ -131,7 +131,6 @@ export class MomentsManager {
 					if(!tFoundContext)
 						delete iMoment.dcDiffs[Number(iDiffID)]
 				})
-				iNewCodapState.contexts = [];
 			}
 		}
 	}

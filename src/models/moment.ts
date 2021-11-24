@@ -100,7 +100,10 @@ export class Moment {
 	}
 
 	setCodapState(iCodapState: StateObject) {
-		this.codapState = iCodapState;
+		const tContexts = iCodapState.contexts
+		iCodapState.contexts = null
+		this.codapState = JSON.parse(JSON.stringify(iCodapState))
+		iCodapState.contexts = tContexts
 	}
 
 	setTitle(iTitle: string) {
