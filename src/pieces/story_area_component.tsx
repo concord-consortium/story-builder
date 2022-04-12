@@ -67,8 +67,10 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea, forc
 	}
 
 	handleDragOver(e:any) {
-		this.placementIndicator.current.style.left = `${this.dragState.indicatorX}px`;
-		e.preventDefault();	// So that we'll get the drop event
+		if( e.dataTransfer.types.includes('text/plain')) {
+			this.placementIndicator.current.style.left = `${this.dragState.indicatorX}px`;
+			e.preventDefault();	// So that we'll get the drop event
+		}
 	}
 
 	handleDrop(e:any) {
