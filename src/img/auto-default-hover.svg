@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="-5" y="-5" width="28" height="28" viewBox="0, 0, 32, 32">
+  <g id="Layer_1">
+    <path d="M32.188,15.847 C32.188,24.492 25.228,31.5 16.642,31.5 C8.057,31.5 1.097,24.492 1.097,15.847 C1.097,7.203 8.057,0.195 16.642,0.195 C25.228,0.195 32.188,7.203 32.188,15.847 z" fill="#15788F"/>
+    <g>
+      <text transform="matrix(1, 0, 0, 1, 9.671, 12.195)">
+        <tspan x="-7.356" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">au</tspan>
+      </text>
+      <text transform="matrix(1, 0, 0, 1, 19.22, 12.195)">
+        <tspan x="-2.442" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">t</tspan>
+      </text>
+      <text transform="matrix(1, 0, 0, 1, 25.295, 12.195)">
+        <tspan x="-3.968" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">o</tspan>
+      </text>
+    </g>
+    <g>
+      <text transform="matrix(1, 0, 0, 1, 5.552, 19.882)">
+        <tspan x="-2.897" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">s</tspan>
+      </text>
+      <text transform="matrix(1, 0, 0, 1, 11.699, 19.882)">
+        <tspan x="-3.499" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">a</tspan>
+      </text>
+      <text transform="matrix(1, 0, 0, 1, 18.327, 19.882)">
+        <tspan x="-3.492" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">v</tspan>
+      </text>
+      <text transform="matrix(1, 0, 0, 1, 25.062, 19.882)">
+        <tspan x="-3.632" y="3.75" font-family="MyriadPro-Regular" font-size="14" fill="#FFFFFF">e</tspan>
+      </text>
+    </g>
+  </g>
+</svg>

@@ -4,7 +4,7 @@ import {ControlArea} from "./control_area";
 import {TitleEditor} from "./title_editor";
 
 interface MomentProps {
-	momentsAreLocked: boolean,
+	momentsAreAutoSaved: boolean,
 	myMoment: Moment,
 	onClickCallback: any,
 	onTitleKeydownCallback: any,
@@ -155,18 +155,18 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 	}
 
 	public render() {
-		let tIsLocked = this.props.momentsAreLocked,
+		let tAutoSave = this.props.momentsAreAutoSaved,
 			tIsActive = this.props.myMoment.isActive(),
 			tIsChanged = this.props.myMoment.isChanged(),
 			tIsNew = this.props.myMoment.isNew(),
-			tDeleteButton = tIsActive && !tIsLocked ?
+			tDeleteButton = tIsActive && !tAutoSave ?
 				(<div className='SB-delete-area'>
 						<img className={'SB-button SB-delete-default'} alt='Delete this moment'
 								 onClick={this.handleDelete}
 								 title="Delete this moment"/>
 					</div>
 				) : null,
-			tControlArea = tIsActive && !tIsLocked ? <ControlArea
+			tControlArea = tIsActive && !tAutoSave ? <ControlArea
 				myMoment={this.props.myMoment}
 				onDuplicateCallback={this.props.onDuplicateCallback}
 				onSaveCallback={this.props.onSaveCallback}
@@ -178,7 +178,7 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 										 setTextAreaCallback={this.setTextArea}
 										 handleBlurCallback={this.handleTitleEditBlur}
 										 shouldSelectAll={tIsNew}
-										 canEdit={!tIsLocked}>
+										 canEdit={!tAutoSave}>
 				</TitleEditor>);
 
 		return (
@@ -188,9 +188,9 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 				onDragOver={this.handleDragOver}
 			>
 				{tDeleteButton}
-				<div className={tMomentClassName + (tIsChanged && !this.props.momentsAreLocked ? ' changed' : '')}
+				<div className={tMomentClassName + (tIsChanged ? ' changed' : '')}
 						 onClick={this.handleClick}
-						 draggable={!this.editIsInProgress && !this.props.momentsAreLocked}
+						 draggable={!this.editIsInProgress}
 						 onDragStartCapture={this.handleDragStart}
 				>
 					<div className='SB-moment-number'>

@@ -114,7 +114,7 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea, forc
 				tComponents.push(
 					<MomentComponent key={`moment-${iMoment.ID}`}
 													 myMoment={iMoment}
-													 momentsAreLocked={this_.props.myStoryArea.isLocked}
+													 momentsAreAutoSaved={this_.props.myStoryArea.isAutoSave}
 													 onClickCallback={this_.onMomentClick}
 													 onTitleBlurCallback={(iMoment: Moment, iNewTitle: string) => {
 														 this_.props.myStoryArea.handleNewTitle(iMoment, iNewTitle);
@@ -138,14 +138,16 @@ export class StoryAreaComponent extends Component<{ myStoryArea: StoryArea, forc
 		}
 
 		function dialog(iMode:string) {
-			if (iMode === 'dialog' /*&& !this_.props.myStoryArea.isLocked*/) {
-				return (<Dialog dialogState={this_.state.dialogState}> </Dialog>);
+			if (iMode === 'dialog' /*&& !this_.props.myStoryArea.isAutoSave*/) {
+				return (<Dialog
+					dialogState={this_.state.dialogState}
+				checkboxCallback={ this_.props.myStoryArea.getSetIsAutoSave}/>);
 			}
 			else return '';
 		}
 
 		function coverSheet( iMode:string) {
-			if( iMode === 'dialog' && !this_.props.myStoryArea.isLocked) {
+			if( iMode === 'dialog' && !this_.props.myStoryArea.isAutoSave) {
 				return (
 					<div className= 'SB-cover-sheet'
 					onClickCapture={(e)=>{

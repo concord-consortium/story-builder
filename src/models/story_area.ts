@@ -43,7 +43,7 @@ export class StoryArea {
 	};
 
 	public momentsManager:MomentsManager = new MomentsManager();
-	public isLocked:boolean = false;
+	public isAutoSave:boolean = false;
 	private restoreInProgress = false;
 	private waitingForDocumentState = false;
 	private saveStateInSrcMoment = false;
@@ -128,6 +128,7 @@ export class StoryArea {
 	}
 
 	async initialize() {
+		this.getSetIsAutoSave = this.getSetIsAutoSave.bind(this)
 		/**
 		 * We delay the start making the initial moment to let the text box appear;
 		 * otherwise the text box will not be in that Moment's codapState.
@@ -149,15 +150,17 @@ export class StoryArea {
 		this.pingCallback = iCallback;
 	}
 
-	toggleLock() {
-		this.isLocked = !this.isLocked;
+	toggleIsAutoSave() {
+		this.isAutoSave = !this.isAutoSave;
 		let tSrcMoment = this.momentsManager.srcMoment
-		if( this.isLocked && this.changeCount !== 0 && tSrcMoment && this.pingCallback) {
-			// There are outstanding changes. User must decide now before moving on
-			let tChosenState = this.setupDialogStates()['qClickLock'];
-			tChosenState.explanation = tChosenState.explanation.replace('%@', tSrcMoment.momentNumber);
-			this.pingCallback(tChosenState);
+	}
+
+	getSetIsAutoSave(iSetting?:boolean) {
+		if(typeof iSetting === 'boolean') {
+			this.isAutoSave = iSetting
+			this.forceComponentUpdate()
 		}
+		return this.isAutoSave
 	}
 
 	setForceUpdateCallback( iCallback:Function) {
@@ -229,9 +232,6 @@ export class StoryArea {
 	 * @param iCommand    the Command resulting from the user action
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
-		if( this.isLocked)
-			return;	// because we don't respond to notifications
-
 		// CODAP lets us know when it is in the process of updating so we can ignore those notifications
 		if( iCommand.resource === 'documentChangeNotice') {
 			if( iCommand.values.operation === 'updateDocumentBegun') {
@@ -310,7 +310,8 @@ export class StoryArea {
 
 	restorePluginState(iStorage:any) {
 		if(iStorage && iStorage.hasOwnProperty( 'momentsStorage')) {
-			this.isLocked = iStorage.isLocked || false;
+			this.changeCount = iStorage.changeCount || 0
+			this.isAutoSave = iStorage.isLocked || iStorage.isAutoSave || false;
 			this.momentsManager.restoreFromStorage(iStorage.momentsStorage);
 		}
 		else {	// for backward compatibility
@@ -331,7 +332,8 @@ export class StoryArea {
 			return {
 				success: true,
 				values: {
-					isLocked: this.isLocked,
+					changeCount: this.changeCount,
+					isAutoSave: this.isAutoSave,
 					fromVersion: kSBVersion,
 					momentsStorage: this.momentsManager.createStorage()
 				}
@@ -427,18 +429,18 @@ export class StoryArea {
 
 			//  We are now guaranteed that srcMoment and dstMoment are Moments, not null.
 			//	We must determine where changes should be saved, if at all
-			this.saveStateInSrcMoment = false;
+			this.saveStateInSrcMoment = this.isAutoSave;
 			this.saveStateInDstMoment = false;
 
-			if (dialogMode === '') {
+			if (dialogMode === '' || this.isAutoSave) {
 				//  whenever you're going from a "new" moment, you must save its state
-				this.saveStateInSrcMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.srcMoment.codapState) ||
+				this.saveStateInSrcMoment = this.isAutoSave || StoryArea.stateObjectIsEmpty(this.momentsManager.srcMoment.codapState) ||
 					this.changeCount !== 0
 				this.saveStateInDstMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.dstMoment.codapState);
 				if( this.saveStateInSrcMoment || this.saveStateInDstMoment) {
-					await this.requestDocumentState();	// When received it will be saved in dest moment
+					await this.requestDocumentState();	// When received it will be saved in Src and/or Dst moment
 				}
-				else {
+				if(!this.saveStateInDstMoment) {
 					await this.matchCODAPStateToMoment(this.momentsManager.dstMoment);
 				}
 				this.momentsManager.setCurrentMoment(this.momentsManager.dstMoment);

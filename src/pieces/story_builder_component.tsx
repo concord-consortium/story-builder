@@ -1,17 +1,17 @@
 import React, { Component } from 'react';
 import '../story_builder.css';
-import {HelpButton, LockButton} from "./help_and_lock_buttons";
+import {HelpButton, AutoSaveButton} from "./help_and_auto_save_buttons";
 
 import {StoryAreaComponent} from "./story_area_component"
 import {StoryBuilder} from "../models/story_builder";
 
-class StoryBuilderComponent extends Component<{},{locked:boolean, count:number}> {
+class StoryBuilderComponent extends Component<{},{isAutoSave:boolean, count:number}> {
   private storyBuilder:StoryBuilder | undefined;
 
   constructor(props:any) {
     super(props);
-    this.state = {locked: false, count: 0}
-    this.toggleLock = this.toggleLock.bind( this);
+    this.state = {isAutoSave: false, count: 0}
+    this.toggleAutoSave = this.toggleAutoSave.bind( this);
     this.doForceUpdate = this.doForceUpdate.bind( this);
   }
 
@@ -22,17 +22,17 @@ class StoryBuilderComponent extends Component<{},{locked:boolean, count:number}>
 
   componentDidMount() {
     if( this.storyBuilder)
-      this.setState({locked: this.storyBuilder.storyArea.isLocked, count: this.state.count});
+      this.setState({isAutoSave: this.storyBuilder.storyArea.isAutoSave, count: this.state.count});
   }
 
   doForceUpdate() {
-    this.setState({count: this.state.count + 1, locked: this.state.locked});
+    this.setState({count: this.state.count + 1, isAutoSave: this.state.isAutoSave});
   }
 
-  toggleLock() {
+  toggleAutoSave() {
     if( this.storyBuilder) {
-      this.storyBuilder.storyArea.toggleLock();
-      this.setState({locked: this.storyBuilder.storyArea.isLocked, count: this.state.count});
+      this.storyBuilder.storyArea.toggleIsAutoSave();
+      this.setState({isAutoSave: this.storyBuilder.storyArea.isAutoSave, count: this.state.count});
     }
   }
 
@@ -45,9 +45,9 @@ class StoryBuilderComponent extends Component<{},{locked:boolean, count:number}>
         <div className="SB SB-empty-back">
           <div className="SB-help-lock-buttons">
             <HelpButton/>
-            <LockButton
-              isLocked={this.storyBuilder.storyArea.isLocked}
-              clickCallback={this.toggleLock}/>
+            <AutoSaveButton
+              isAutoSave={this.storyBuilder.storyArea.isAutoSave}
+              clickCallback={this.toggleAutoSave}/>
           </div>
           <StoryAreaComponent
             myStoryArea={this.storyBuilder.storyArea}

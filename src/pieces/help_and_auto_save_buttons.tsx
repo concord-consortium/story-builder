@@ -16,11 +16,11 @@ export function HelpButton() {
 	)
 }
 
-export function LockButton(props: { isLocked: boolean, clickCallback: any }) {
-	const state = props.isLocked ? 'lock' : 'unlock',
+export function AutoSaveButton(props: { isAutoSave: boolean, clickCallback: any }) {
+	const state = props.isAutoSave ? 'auto' : 'non-auto',
 				className = `SB-${state}-default`,
-				title = props.isLocked ? `Currently locked. Moments will not change. Click to unlock.` :
-				`Currently unlocked. Click to prevent changes to moments.`;
+				title = props.isAutoSave ? `Currently will automatically save changes to moments. Click to be asked whether to save or discard.` :
+				`Currently will ask to save or discard changes to moments. Click to automatically save changes without asking.`;
 	return (
 		<div className='SB-button'
 				 style={{right: 0} }>

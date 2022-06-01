@@ -4,29 +4,53 @@
 
 import React, {Component} from "react";
 
-export class Dialog extends Component<{dialogState:{
-	heading: string,
-	explanation: string,
-	labeledCallbacks: {
-		label:string,
-		callback:any
-	}[]
-}}, any> {
+export class Dialog extends Component<{
+	dialogState: {
+		heading: string,
+		explanation: string,
+		labeledCallbacks: {
+			label: string,
+			callback: any
+		}[]
+	}
+	checkboxCallback: (newSetting?:boolean)=>boolean
+}, { isAutoSave:boolean }> {
+
+	constructor(props:any) {
+		super(props);
+		this.state = { isAutoSave: props.checkboxCallback()}
+	}
+
 
 	render() {
 		let this_ = this,
-				numLabels = this.props.dialogState.labeledCallbacks.length;
+			numLabels = this.props.dialogState.labeledCallbacks.length;
 
 		function buttons() {
-			return this_.props.dialogState.labeledCallbacks.map( (iLabeledCallback, iIndex)=>{
+			return this_.props.dialogState.labeledCallbacks.map((iLabeledCallback, iIndex) => {
 				return (<button key={`button-${iIndex}`}
 												className='SB-dialog-button'
 												autoFocus={iIndex === numLabels - 1}
-									onClick={()=> {
-										iLabeledCallback.callback(this_.props.dialogState);
-									}}>
+												onClick={() => {
+													iLabeledCallback.callback(this_.props.dialogState);
+												}}>
 					{iLabeledCallback.label}</button>);
 			});
+		}
+
+		function optOutCheckbox() {
+			return (
+				<label>
+					<input type="checkbox"
+					checked={this_.props.checkboxCallback()}
+					onChange={(e)=> {
+						const isChecked = e.target.checked
+						this_.props.checkboxCallback(isChecked)
+						this_.setState({isAutoSave: isChecked})
+					}}/>
+					Don't ask me again (always save)
+				</label>
+			)
 		}
 
 		let tButtons = buttons();
@@ -38,6 +62,7 @@ export class Dialog extends Component<{dialogState:{
 				<div className={'SB-button-container'}>
 					{tButtons}
 				</div>
+				{optOutCheckbox()}
 			</div>
 		);
 	}

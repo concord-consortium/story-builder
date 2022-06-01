@@ -54,24 +54,24 @@ Buttons, including the help button, use this
 /**
     The lock button is different than the others in that it sticks to the right edge below help
  */
-.SB-unlock-default {
+.SB-non-auto-default {
   right: 0;
   object-fit: contain;
-  content: url("./img/unlock-default.svg");
+  content: url("./img/non-auto-default.svg");
 }
 
-.SB-unlock-default:hover {
-  content: url("./img/unlock-hover-click.svg");
+.SB-non-auto-default:hover {
+  content: url("./img/non-auto-default-hover.svg");
 }
 
-.SB-lock-default {
+.SB-auto-default {
   right: 0;
   object-fit: contain;
-  content: url("./img/lock-default.svg");
+  content: url("./img/auto-default.svg");
 }
 
-.SB-lock-default:hover {
-  content: url("./img/lock-hover-click.svg");
+.SB-auto-default:hover {
+  content: url("./img/auto-default-hover.svg");
 }
 
 /**
