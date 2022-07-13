@@ -257,6 +257,9 @@ export class StoryArea {
 						this.momentsManager.setNewTitle(iCommand.values.to);
 						this.forceComponentUpdate();
 					}
+					else {
+						this.momentsManager.markCurrentMomentAsChanged(true);
+					}
 				} else if (iCommand.values.operation === 'commitEdit' &&
 					iCommand.values.id === this.narrativeBoxID) {
 					this.momentsManager.setNewNarrative(iCommand.values.text);
