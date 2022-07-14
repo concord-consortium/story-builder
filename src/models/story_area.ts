@@ -3,7 +3,7 @@ import codapInterface from "../lib/CodapInterface";
 import {Moment, StateObject} from "./moment";
 import {
 	kNarrativeTextBoxName,
-	needNarrativeTextBox,
+	needNarrativeTextBox, setBusyIndicator,
 } from "../utilities/utilities";
 import {kSBVersion} from "./story_builder";
 
@@ -14,9 +14,11 @@ export class StoryArea {
 	 * @param iObject
 	 * @private
 	 */
-	private static stateObjectIsEmpty( iObject:any):boolean {
+	private static stateObjectIsEmpty(iObject: any): boolean {
 		return !iObject || typeof iObject !== 'object' || Object.keys(iObject).length === 0 ||
-			Object.values(iObject).every((iValue: any)=> { return !iValue });
+			Object.values(iObject).every((iValue: any) => {
+				return !iValue
+			});
 	}
 
 	private stateStrings = {
@@ -28,9 +30,9 @@ export class StoryArea {
 			explanation: `You have made changes to Moment %@. Would you like to save those changes to both Moments %@
 				 and %@ or only to the new Moment %@?`,
 			labeledCallbacks: [
-				{ label: 'Discard'},
-				{ label: 'Moments %@ and %@'},
-				{ label: 'Only Moment %@'}
+				{label: 'Discard'},
+				{label: 'Moments %@ and %@'},
+				{label: 'Only Moment %@'}
 			]
 		},
 		qRevert: {
@@ -42,8 +44,8 @@ export class StoryArea {
 		}
 	};
 
-	public momentsManager:MomentsManager = new MomentsManager();
-	public isAutoSave:boolean = false;
+	public momentsManager: MomentsManager = new MomentsManager();
+	public isAutoSave: boolean = false;
 	private restoreInProgress = false;
 	private waitingForDocumentState = false;
 	private saveStateInSrcMoment = false;
@@ -52,8 +54,8 @@ export class StoryArea {
 	private narrativeBoxID: number = 0;
 	private justMadeInitialMomentAndText = false;
 	private restoringCodapStateInProgress = false;
-	private pingCallback:Function | null = null;
-	private forceUpdateCallback:Function | null = null;
+	private pingCallback: Function | null = null;
+	private forceUpdateCallback: Function | null = null;
 
 	constructor() {
 		this.handleNotification = this.handleNotification.bind(this);
@@ -77,51 +79,71 @@ export class StoryArea {
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
 	}
 
-	setupDialogStates():any {
+	setupDialogStates(): any {
 		const template = this.stateStrings;
 		return {
 			qClickAnotherMoment: {
 				prompt: 'Save or discard changes?',
 				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
-					{ label: 'Cancel',
-						callback: this.handleCancel},
-					{ label: 'Discard',
-						callback: this.handleDiscard},
-					{ label: 'Save',
-						callback: this.handleSave}
+					{
+						label: 'Cancel',
+						callback: this.handleCancel
+					},
+					{
+						label: 'Discard',
+						callback: this.handleDiscard
+					},
+					{
+						label: 'Save',
+						callback: this.handleSave
+					}
 				]
 			},
 			qDupNotLastMoment: {
 				prompt: template.qDupNotLastMoment.prompt.slice(),
 				explanation: template.qDupNotLastMoment.explanation.slice(),
 				labeledCallbacks: [
-					{ label: 'Discard',
-						callback: this.handleDiscard},
-					{ label: template.qDupNotLastMoment.labeledCallbacks[1].label.slice(),
-						callback: this.handleSaveToBoth},
-					{ label: template.qDupNotLastMoment.labeledCallbacks[2].label.slice(),
-						callback: this.handleOnlyNew}
+					{
+						label: 'Discard',
+						callback: this.handleDiscard
+					},
+					{
+						label: template.qDupNotLastMoment.labeledCallbacks[1].label.slice(),
+						callback: this.handleSaveToBoth
+					},
+					{
+						label: template.qDupNotLastMoment.labeledCallbacks[2].label.slice(),
+						callback: this.handleOnlyNew
+					}
 				]
 			},
 			qRevert: {
 				prompt: 'Discard changes?',
 				explanation: template.qRevert.explanation.slice(),
 				labeledCallbacks: [
-					{ label: 'Cancel',
-						callback: this.handleCancel},
-					{ label: 'Discard',
-						callback: this.handleDiscard}
+					{
+						label: 'Cancel',
+						callback: this.handleCancel
+					},
+					{
+						label: 'Discard',
+						callback: this.handleDiscard
+					}
 				]
 			},
 			qClickLock: {
 				prompt: 'Save or discard changes?',
 				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
-					{ label: 'Discard',
-						callback: this.handleDiscardToLock},
-					{ label: 'Save',
-						callback: this.handleSaveToLock}
+					{
+						label: 'Discard',
+						callback: this.handleDiscardToLock
+					},
+					{
+						label: 'Save',
+						callback: this.handleSaveToLock
+					}
 				]
 			}
 		};
@@ -146,7 +168,7 @@ export class StoryArea {
 		}
 	}
 
-	setPingCallback( iCallback:Function) {
+	setPingCallback(iCallback: Function) {
 		this.pingCallback = iCallback;
 	}
 
@@ -155,20 +177,20 @@ export class StoryArea {
 		let tSrcMoment = this.momentsManager.srcMoment
 	}
 
-	getSetIsAutoSave(iSetting?:boolean) {
-		if(typeof iSetting === 'boolean') {
+	getSetIsAutoSave(iSetting?: boolean) {
+		if (typeof iSetting === 'boolean') {
 			this.isAutoSave = iSetting
 			this.forceComponentUpdate()
 		}
 		return this.isAutoSave
 	}
 
-	setForceUpdateCallback( iCallback:Function) {
+	setForceUpdateCallback(iCallback: Function) {
 		this.forceUpdateCallback = iCallback;
 	}
 
 	forceComponentUpdate() {
-		if( this.forceUpdateCallback)
+		if (this.forceUpdateCallback)
 			this.forceUpdateCallback();
 	}
 
@@ -181,7 +203,7 @@ export class StoryArea {
 	 * Also called if user makes a new moment and there are none currently.
 	 */
 	async makeInitialMomentAndTextComponent(): Promise<void> {
-		const tMoment = this.momentsManager.makeNewMomentUsingCodapState({contexts:[]});   //  the unsaved moment has no state yet
+		const tMoment = this.momentsManager.makeNewMomentUsingCodapState({contexts: []});   //  the unsaved moment has no state yet
 
 		//  make initial text box
 		const tNarrativeID: number = await needNarrativeTextBox()
@@ -218,7 +240,7 @@ export class StoryArea {
 		this.momentsManager.currentMoment = tMoment;
 		await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.currentMoment);
 
-		await this.doBeginTransitionToDifferentMoment( tMoment);
+		await this.doBeginTransitionToDifferentMoment(tMoment);
 
 		this.forceComponentUpdate();     //  make the moment appear on the screen in the bar
 		await this.saveCurrentMoment();
@@ -233,12 +255,11 @@ export class StoryArea {
 	 */
 	private async handleNotification(iCommand: any): Promise<any> {
 		// CODAP lets us know when it is in the process of updating so we can ignore those notifications
-		if( iCommand.resource === 'documentChangeNotice') {
-			if( iCommand.values.operation === 'updateDocumentBegun') {
+		if (iCommand.resource === 'documentChangeNotice') {
+			if (iCommand.values.operation === 'updateDocumentBegun') {
 				this.restoringCodapStateInProgress = true;
 				return;
-			}
-			else if( iCommand.values.operation === 'updateDocumentEnded') {
+			} else if (iCommand.values.operation === 'updateDocumentEnded') {
 				this.restoringCodapStateInProgress = false;
 				return;
 			}
@@ -246,7 +267,7 @@ export class StoryArea {
 
 		if (iCommand.resource !== 'undoChangeNotice' /*&&
 			kIgnorableOperations.indexOf( iCommand.values.operation) === -1*/) {
-			if( !this.restoringCodapStateInProgress) {
+			if (!this.restoringCodapStateInProgress) {
 				//  console.log(`  notification! Resource: ${iCommand.resource}, operation: ${iCommand.values.operation}`);
 				if (iCommand.values.operation === 'newDocumentState') {
 					this.receiveNewDocumentState(iCommand);
@@ -256,8 +277,7 @@ export class StoryArea {
 						console.log(`TITLE changed to "${iCommand.values.to}... change count is ${this.changeCount}"`);
 						this.momentsManager.setNewTitle(iCommand.values.to);
 						this.forceComponentUpdate();
-					}
-					else {
+					} else {
 						this.momentsManager.markCurrentMomentAsChanged(true);
 					}
 				} else if (iCommand.values.operation === 'commitEdit' &&
@@ -276,7 +296,7 @@ export class StoryArea {
 	private async matchCODAPStateToMoment(iMoment: Moment | null) {
 		const newState = (iMoment) ? iMoment.codapState : null;
 		const tMomentID = (iMoment) ? iMoment.ID : "null";  //  for catch error reporting
-		if( iMoment && newState) {
+		if (iMoment && newState) {
 			let tFullState = this.momentsManager.patchDataContexts(iMoment, newState);
 
 			await this.restoreCodapState(tFullState)
@@ -294,6 +314,7 @@ export class StoryArea {
 	private async restoreCodapState(iFullCodapState: StateObject | null) {
 		console.log(`begin restore state`);
 		if (!StoryArea.stateObjectIsEmpty(iFullCodapState)) {
+			await setBusyIndicator(true)
 			this.restoreInProgress = true;
 			await codapInterface.sendRequest({
 				action: 'update',
@@ -302,6 +323,9 @@ export class StoryArea {
 			}).catch(() => {
 				console.log(`•••  caught restoring CODAP state`)
 			})
+				.finally(async () => {
+					setBusyIndicator(false)
+				})
 
 			console.log('end restore state');
 			this.restoreInProgress = false;
@@ -311,14 +335,13 @@ export class StoryArea {
 		}
 	}
 
-	restorePluginState(iStorage:any) {
-		if(iStorage && iStorage.hasOwnProperty( 'momentsStorage')) {
+	restorePluginState(iStorage: any) {
+		if (iStorage && iStorage.hasOwnProperty('momentsStorage')) {
 			this.changeCount = iStorage.changeCount || 0
 			this.isAutoSave = iStorage.isLocked || iStorage.isAutoSave || false;
 			this.momentsManager.restoreFromStorage(iStorage.momentsStorage);
-		}
-		else {	// for backward compatibility
-			this.momentsManager.restoreFromStorage( iStorage);
+		} else {	// for backward compatibility
+			this.momentsManager.restoreFromStorage(iStorage);
 		}
 		// Because the user might have saved the document without saving state in the current moment,
 		// we do that now.
@@ -352,7 +375,7 @@ export class StoryArea {
 	private async requestDocumentState() {
 		this.waitingForDocumentState = true;
 		await codapInterface.sendRequest({action: 'get', resource: 'document'})
-			.catch(()=>{
+			.catch(() => {
 				this.waitingForDocumentState = false;
 			});
 	}
@@ -381,8 +404,8 @@ export class StoryArea {
 		}
 	}
 
-	async handleMomentClick(iMoment:Moment) {
-		if( iMoment) {
+	async handleMomentClick(iMoment: Moment) {
+		if (iMoment) {
 			await this.doBeginTransitionToDifferentMoment(iMoment);
 		}
 	}
@@ -399,7 +422,7 @@ export class StoryArea {
 		await this.doBeginTransitionToDifferentMoment(null);
 	}
 
-	public async handleNewTitle( iMoment:Moment, iNewTitle:string) {
+	public async handleNewTitle(iMoment: Moment, iNewTitle: string) {
 		if (iNewTitle.length > 0) {
 			iMoment.setTitle(iNewTitle);
 			await StoryArea.displayTitleInTextBox(iMoment);
@@ -408,11 +431,11 @@ export class StoryArea {
 	}
 
 	async doBeginTransitionToDifferentMoment(iMoment: Moment | null) {
-		if( !this.pingCallback) {
+		if (!this.pingCallback) {
 			console.log('pingCallback not initialized');
 			return;
 		}
-		if(iMoment !== null && iMoment === this.momentsManager.currentMoment) {
+		if (iMoment !== null && iMoment === this.momentsManager.currentMoment) {
 			return;	// We're not going to a different moment
 		}
 		if (this.momentsManager.currentMoment) {
@@ -421,13 +444,13 @@ export class StoryArea {
 
 			if (iMoment) {  //  a destination moment already exists
 				this.momentsManager.dstMoment = iMoment;
-				if( this.changeCount !== 0)
+				if (this.changeCount !== 0)
 					dialogMode = 'qClickAnotherMoment';
 			} else {        //  we are making a new moment
-				if( this.momentsManager.srcMoment !== this.momentsManager.getLastMoment() &&
+				if (this.momentsManager.srcMoment !== this.momentsManager.getLastMoment() &&
 					this.changeCount !== 0)
 					dialogMode = 'qDupNotLastMoment';
-				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({contexts:null});
+				this.momentsManager.dstMoment = this.momentsManager.makeNewMomentUsingCodapState({contexts: null});
 			}
 
 			//  We are now guaranteed that srcMoment and dstMoment are Moments, not null.
@@ -440,20 +463,19 @@ export class StoryArea {
 				this.saveStateInSrcMoment = this.isAutoSave || StoryArea.stateObjectIsEmpty(this.momentsManager.srcMoment.codapState) ||
 					this.changeCount !== 0
 				this.saveStateInDstMoment = StoryArea.stateObjectIsEmpty(this.momentsManager.dstMoment.codapState);
-				if( this.saveStateInSrcMoment || this.saveStateInDstMoment) {
+				if (this.saveStateInSrcMoment || this.saveStateInDstMoment) {
 					await this.requestDocumentState();	// When received it will be saved in Src and/or Dst moment
 				}
-				if(!this.saveStateInDstMoment) {
+				if (!this.saveStateInDstMoment) {
 					await this.matchCODAPStateToMoment(this.momentsManager.dstMoment);
 				}
 				this.momentsManager.setCurrentMoment(this.momentsManager.dstMoment);
 				await StoryArea.displayNarrativeAndTitleInTextBox(this.momentsManager.dstMoment);
 				this.forceComponentUpdate();
-			}
-			else {
+			} else {
 				// There are changes so we have to set up for asynchronous feedback from user
 				let tChosenState = this.setupDialogStates()[dialogMode],
-						tSrcMoment = this.momentsManager.srcMoment;
+					tSrcMoment = this.momentsManager.srcMoment;
 				tChosenState.srcMoment = this.momentsManager.srcMoment;
 				tChosenState.dstMoment = this.momentsManager.dstMoment;
 				tChosenState.mode = dialogMode;
@@ -483,7 +505,7 @@ export class StoryArea {
 	}
 
 	pingToNormal() {
-		if( this.pingCallback)
+		if (this.pingCallback)
 			this.pingCallback(null);	// signals story area component to go back to normal
 	}
 
@@ -500,9 +522,9 @@ export class StoryArea {
 	 * destination moment the current moment.
 	 * @param iDialogState
 	 */
-	async handleDiscard( iDialogState:any) {
-		await this.matchCODAPStateToMoment( iDialogState.srcMoment);
-		await this.doBeginTransitionToDifferentMoment( iDialogState.dstMoment);
+	async handleDiscard(iDialogState: any) {
+		await this.matchCODAPStateToMoment(iDialogState.srcMoment);
+		await this.doBeginTransitionToDifferentMoment(iDialogState.dstMoment);
 		this.pingToNormal();
 	}
 
@@ -511,11 +533,11 @@ export class StoryArea {
 	 * They have chosen to save the changes in the current moment.
 	 * @param iDialogState
 	 */
-	async handleSave( iDialogState:any) {
+	async handleSave(iDialogState: any) {
 		await this.saveCurrentMoment();
 		await this.matchCODAPStateToMoment(iDialogState.dstMoment);
 		await StoryArea.displayNarrativeAndTitleInTextBox(iDialogState.dstMoment);
-		this.momentsManager.setCurrentMoment( iDialogState.dstMoment);
+		this.momentsManager.setCurrentMoment(iDialogState.dstMoment);
 		this.pingToNormal();
 	}
 
@@ -523,7 +545,7 @@ export class StoryArea {
 	 * The user has made changes in the current moment and is about to lock. They have chosen to save
 	 * the current moment
 	 */
-	async handleSaveToLock( ) {
+	async handleSaveToLock() {
 		await this.saveCurrentMoment();
 		this.resetChangeCount();
 		this.pingToNormal();
@@ -535,7 +557,7 @@ export class StoryArea {
 	 */
 	async handleDiscardToLock() {
 		console.log('handleDiscardToLock', this.momentsManager.currentMoment);
-		await this.matchCODAPStateToMoment( this.momentsManager.currentMoment);
+		await this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
 		this.pingToNormal();
 	}
 
@@ -545,11 +567,11 @@ export class StoryArea {
 	 * What this amounts to is leaving CODAP in its current state and moving to the new moment—dstMoment.
 	 * @param iDialogState
 	 */
-	async handleOnlyNew( iDialogState:any) {
+	async handleOnlyNew(iDialogState: any) {
 		let tNewMoment = iDialogState.dstMoment;
 		await StoryArea.displayNarrativeAndTitleInTextBox(tNewMoment);
 		this.momentsManager.setCurrentMoment(tNewMoment);
-		tNewMoment.setIsChanged( true);	// Because we know there are changes
+		tNewMoment.setIsChanged(true);	// Because we know there are changes
 		this.pingToNormal();
 	}
 
@@ -559,14 +581,14 @@ export class StoryArea {
 	 *
 	 * @param iDialogState
 	 */
-	async handleSaveToBoth( iDialogState:any) {
+	async handleSaveToBoth(iDialogState: any) {
 		this.saveStateInSrcMoment = true;
 		this.saveStateInDstMoment = true;
 		await this.requestDocumentState();
-/*
-		this.resetChangeCount();
-		await this.doBeginTransitionToDifferentMoment( iDialogState.dstMoment);
-*/
+		/*
+				this.resetChangeCount();
+				await this.doBeginTransitionToDifferentMoment( iDialogState.dstMoment);
+		*/
 		this.pingToNormal();
 	}
 
@@ -597,7 +619,7 @@ export class StoryArea {
 		this.matchCODAPStateToMoment(this.momentsManager.currentMoment);
 	}
 
-	public static async displayNarrativeAndTitleInTextBox( iMoment:Moment | null) {
+	public static async displayNarrativeAndTitleInTextBox(iMoment: Moment | null) {
 		await StoryArea.displayNarrativeInTextBox(iMoment);
 		await StoryArea.displayTitleInTextBox(iMoment);
 	}

@@ -81,3 +81,15 @@ export async function needNarrativeTextBox(): Promise<number> {
 		});
 	return need;
 }
+
+export async function setBusyIndicator(setIt:boolean) {
+	const request = setIt ? 'indicateBusy' : 'indicateIdle'
+	await codapInterface.sendRequest({
+		"action": "notify",
+		"resource": "interactiveFrame",
+		"values": {
+			"request": request,
+			"cursorMode": true
+		}
+	})
+}
