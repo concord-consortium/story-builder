@@ -1,6 +1,7 @@
 import {StoryArea} from "./story_area";
 import {initializePlugin} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
+import tr from "../utilities/translate"
 
 export const kSBVersion = "0.84";
 export class StoryBuilder {
@@ -13,7 +14,7 @@ export class StoryBuilder {
 	}
 
 	async initialize() {
-		const kPluginName = "Story Builder";
+		const kPluginName = tr("dg.plugin.storyBuilder.pluginName");
 		const kVersion = kSBVersion;
 		const kInitialDimensions = {
 			width: 800,

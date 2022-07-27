@@ -6,6 +6,7 @@ import {Moment, StateObject} from "./moment";
 import {DiffPatcher, Delta} from "jsondiffpatch";
 import sizeof from "object-sizeof";
 import {putTextComponentInfoIntoCodapState} from "../utilities/utilities";
+import tr from "../utilities/translate";
 
 export class MomentsManager {
 	public currentMoment: Moment | null = null;
@@ -20,8 +21,8 @@ export class MomentsManager {
 	});
 	private masterContextsObject: { [index:number]: {[index:number]:object}} = {};	// First index is context ID, second index is subIndex
 	private nextMomentID: number = 0;
-	private kInitialJSONText = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"What did you do? Why did you do it?"}]},{"type":"paragraph","children":[{"text":"¿Qué hizo? ¿Por qué?"}]}],"objTypes":{"paragraph":"block"}}}`;
-	private kInitialJSONText_start = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"This is the beginning of your data story."}]},{"type":"paragraph","children":[{"text":"Esto es el comienzo de su cuento de datos."}]}],"objTypes":{"paragraph":"block"}}}`;
+	private kInitialJSONText = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"${tr("dg.plugin.storyBuilder.momentTextboxContent")}"}]}],"objTypes":{"paragraph":"block"}}}`;
+	private kInitialJSONText_start = `{"object":"value","document":{"children":[{"type":"paragraph","children":[{"text":"${tr("dg.plugin.storyBuilder.momentTextboxFirstContent")}"}]}],"objTypes":{"paragraph":"block"}}}`;
 
 	getCurrentMomentTitle(): string {
 		return (this.currentMoment) ? this.currentMoment.title : "";
@@ -405,7 +406,8 @@ export class MomentsManager {
 
 		this.insertMomentAfterMoment(tNewMoment, this.currentMoment);
 
-		tNewMoment.title = (tNewMoment.ID === 0) ? "start ... comienzo" : "moment title/título";
+		tNewMoment.title = (tNewMoment.ID === 0) ? tr("dg.plugin.storyBuilder.momentManager.firstTitle")
+			: tr("dg.plugin.storyBuilder.momentManager.nextTitle");
 		tNewMoment.narrative = tNewMoment.ID ? this.kInitialJSONText : this.kInitialJSONText_start;
 		this.setCurrentMoment( tNewMoment);
 		this.renumberMoments();

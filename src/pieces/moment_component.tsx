@@ -2,6 +2,7 @@ import React, {Component} from "react";
 import {Moment} from "../models/moment";
 import {ControlArea} from "./control_area";
 import {TitleEditor} from "./title_editor";
+import tr from "../utilities/translate"
 
 interface MomentProps {
 	momentsAreAutoSaved: boolean,
@@ -161,9 +162,9 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 			tIsNew = this.props.myMoment.isNew(),
 			tDeleteButton = tIsActive && !tAutoSave ?
 				(<div className='SB-delete-area'>
-						<img className={'SB-button SB-delete-default'} alt='Delete this moment'
+						<img className={'SB-button SB-delete-default'} alt={tr("dg.plugin.storyBuilder.momentComponent.deleteAlt")}
 								 onClick={this.handleDelete}
-								 title="Delete this moment"/>
+								 title={tr("dg.plugin.storyBuilder.momentComponent.deleteTitle")}/>
 					</div>
 				) : null,
 			tControlArea = tIsActive && !tAutoSave ? <ControlArea
