@@ -8,12 +8,6 @@
  */
 import translationSource from './strings.json'
 
-type Translation = Record<string, string>
-interface LanguageFileEntry {
-  key: string;
-  contents: Translation;
-}
-
 const defaultLang = 'en';
 
 // returns baseLANG from baseLANG-REGION if REGION exists
@@ -44,15 +38,18 @@ const getFirstBrowserLanguage = function() {
   return undefined
 }
 
-const translations: Record<string, Translation> =  translationSource;
+const stringMaps: Record<string, any> =  translationSource;
 // Translations are keyed by language. Language codes are assumed to be
 // baseLang-regionCode or just baseLang. If the baseLang entry is not there we
 // add it as a reference to the region. We assume the first region listed is
 // the base region.
-Object.keys(translations).forEach(key => {
+Object.keys(stringMaps).forEach(key => {
   const baseLang = getBaseLanguage(key);
-  if (baseLang && !translations[baseLang]) {
-    translations[baseLang] = translations[key];
+  if (!stringMaps[key.toLowerCase()]) {
+    stringMaps[key.toLowerCase()] = stringMaps[key];
+  }
+  if (baseLang && !stringMaps[baseLang]) {
+    stringMaps[baseLang] = stringMaps[key];
   }
 });
 
@@ -61,33 +58,63 @@ function getURLParam(key:string) {
   return (new URL(document.location)).searchParams.get(key);
 }
 
-const lang = getURLParam("lang") || getPageLanguage() || getFirstBrowserLanguage()
-const baseLang = getBaseLanguage(lang || '')
-// CODAP/Sproutcore lower cases language in documentElement
-const currentLang = lang && translations[lang.toLowerCase()] ? lang : baseLang && translations[baseLang] ? baseLang : defaultLang;
+var lang = getURLParam("lang") || getPageLanguage() || getFirstBrowserLanguage() || defaultLang;
+lang = lang.toLowerCase();
+const baseLang = getBaseLanguage(lang);
 
-const translationList = [translations[currentLang]];
-if (currentLang !== baseLang) {
-  translationList.push(translations[baseLang]);
+const currentStringMaps:any[] = [];
+if (stringMaps[lang]) {
+  currentStringMaps.push(stringMaps[lang]);
+}
+if (lang !== baseLang) {
+  currentStringMaps.push(stringMaps[baseLang]);
 }
 if (baseLang !== defaultLang) {
-  translationList.push(translations[defaultLang])
+  currentStringMaps.push(stringMaps[defaultLang])
 }
 
-// console.log(`CFM: using ${defaultLang} for translation (lang is "${(urlParams as any).lang}" || "${getFirstBrowserLanguage()}")`)
+function resolve(stringID:string) {
+  const stringMap = currentStringMaps.find(t => t[stringID]);
+  if (stringMap) {
+    return stringMap[stringID];
+  } else {
+    return stringID;
+  }
+} 
+/**
+ * Translates a string by referencing a hash of translated strings.
+ * If the lookup fails, the string ID is used.
+ * Arguments after the String ID are substituted for substitution tokens in
+ * the looked up string.
+ * Substitution tokens can have the form "%@" or "%@" followed by a single digit.
+ * Substitution parameters with no digit are substituted sequentially.
+ * So, tr('%@, %@, %@', 'one', 'two', 'three') returns 'one, two, three'.
+ * Substitution parameters followed by a digit are substituted positionally.
+ * So, tr('%@1, %@1, %@2', 'baa', 'black sheep') returns 'baa, baa, black sheep'.
+ * If there are not substitution parameters, or not one for the expected position,
+ * then the string is not modified.
+ *
+ * @param sID {{string}} a string id
+ * @param args an array of strings or variable sequence of strings
+ * @returns {string}
+ */
+function translate(sID:string, ...args:string[]) {
+  function replacer(match:string) {
+    if (match.length===2) {
+      return (args && args[ix++]) || match;
+    } else {
+      return (args && args[Number(match[2])-1]) || match;
+    }
+  }
 
-const varRegExp = /%\{\s*([^}\s]*)\s*}/g // '%{key}' where key is any non-right-bracket string
+  // if (typeof args === 'string') {
+  //   args = Array.from(arguments).slice(1);
+  // }
 
-const translate = function(key: string, vars?: Record<string ,string>, lang?: string) {
-  vars = vars || {};
-  lang = lang || currentLang;
-  // @ts-ignore
-  lang = lang.toLowerCase();
-  let translation = translations[lang] ? translations[lang][key] : key;
-  if (translation == null) { translation = key }
-  return translation.replace(varRegExp, function(match: string, key: string) {
-    return vars && vars[key] || `'** UKNOWN KEY: ${key} **`
-  })
+
+  let s = resolve(sID);
+  let ix = 0;
+  return s.replace(/%@[0-9]?/g, replacer);
 }
 
 export default translate
