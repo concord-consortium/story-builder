@@ -49,7 +49,7 @@ export class Dialog extends Component<{
 						this_.props.checkboxCallback(isChecked)
 						this_.setState({isAutoSave: isChecked})
 					}}/>
-					{tr("dg.plugin.storyBuilder.dialog.optOutCheckbox")}
+					{tr("DG.plugin.StoryBuilder.dialog.optOutCheckbox")}
 				</label>
 			)
 		}

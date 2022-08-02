@@ -14,6 +14,8 @@ interface LanguageFileEntry {
   contents: Translation;
 }
 
+const defaultLang = 'en';
+
 // returns baseLANG from baseLANG-REGION if REGION exists
 const getBaseLanguage = function(langKey: string) {
   return langKey.split("-")[0]
@@ -43,6 +45,10 @@ const getFirstBrowserLanguage = function() {
 }
 
 const translations: Record<string, Translation> =  translationSource;
+// Translations are keyed by language. Language codes are assumed to be
+// baseLang-regionCode or just baseLang. If the baseLang entry is not there we
+// add it as a reference to the region. We assume the first region listed is
+// the base region.
 Object.keys(translations).forEach(key => {
   const baseLang = getBaseLanguage(key);
   if (baseLang && !translations[baseLang]) {
@@ -58,23 +64,29 @@ function getURLParam(key:string) {
 const lang = getURLParam("lang") || getPageLanguage() || getFirstBrowserLanguage()
 const baseLang = getBaseLanguage(lang || '')
 // CODAP/Sproutcore lower cases language in documentElement
-const defaultLang = lang && translations[lang.toLowerCase()] ? lang : baseLang && translations[baseLang] ? baseLang : "en"
+const currentLang = lang && translations[lang.toLowerCase()] ? lang : baseLang && translations[baseLang] ? baseLang : defaultLang;
+
+const translationList = [translations[currentLang]];
+if (currentLang !== baseLang) {
+  translationList.push(translations[baseLang]);
+}
+if (baseLang !== defaultLang) {
+  translationList.push(translations[defaultLang])
+}
 
 // console.log(`CFM: using ${defaultLang} for translation (lang is "${(urlParams as any).lang}" || "${getFirstBrowserLanguage()}")`)
 
-const varRegExp = /%\{\s*([^}\s]*)\s*}/g
+const varRegExp = /%\{\s*([^}\s]*)\s*}/g // '%{key}' where key is any non-right-bracket string
 
 const translate = function(key: string, vars?: Record<string ,string>, lang?: string) {
   vars = vars || {};
-  lang = lang || defaultLang;
+  lang = lang || currentLang;
   // @ts-ignore
   lang = lang.toLowerCase();
   let translation = translations[lang] ? translations[lang][key] : key;
   if (translation == null) { translation = key }
   return translation.replace(varRegExp, function(match: string, key: string) {
-    return Object.prototype.hasOwnProperty.call(vars, key)
-            ? vars[key]
-            : `'** UKNOWN KEY: ${key} **`
+    return vars && vars[key] || `'** UKNOWN KEY: ${key} **`
   })
 }
 

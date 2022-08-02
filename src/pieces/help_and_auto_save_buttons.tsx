@@ -10,8 +10,8 @@ export function HelpButton() {
 		<div className='SB-button'
 				 style={{right: 0} }>
 			<a href='https://codap.concord.org/~bfinzer/help_site/help_site.html' rel="noreferrer" target='_blank'>
-			<img className= 'SB-help-default' alt={tr("dg.plugin.storyBuilder.buttons.helpAlt")}
-					 title={tr("dg.plugin.storyBuilder.buttons.helpTitle")}
+			<img className= 'SB-help-default' alt={tr("DG.plugin.StoryBuilder.buttons.helpAlt")}
+					 title={tr("DG.plugin.StoryBuilder.buttons.helpTitle")}
 					 /></a>
 		</div>
 	)
@@ -20,8 +20,8 @@ export function HelpButton() {
 export function AutoSaveButton(props: { isAutoSave: boolean, clickCallback: any }) {
 	const state = props.isAutoSave ? 'auto' : 'non-auto',
 				className = `SB-${state}-default`,
-				title = props.isAutoSave ? tr("dg.plugin.storyBuilder.buttons.autoSaveTitleAuto")
-					: tr("dg.plugin.storyBuilder.buttons.autoSaveTitleManual");
+				title = props.isAutoSave ? tr("DG.plugin.StoryBuilder.buttons.autoSaveTitleAuto")
+					: tr("DG.plugin.StoryBuilder.buttons.autoSaveTitleManual");
 	return (
 		<div className='SB-button'
 				 style={{right: 0} }>

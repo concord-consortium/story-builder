@@ -14,7 +14,7 @@ export class StoryBuilder {
 	}
 
 	async initialize() {
-		const kPluginName = tr("dg.plugin.storyBuilder.pluginName");
+		const kPluginName = tr("DG.plugin.StoryBuilder.pluginName");
 		const kVersion = kSBVersion;
 		const kInitialDimensions = {
 			width: 800,

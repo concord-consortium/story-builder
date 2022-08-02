@@ -162,9 +162,9 @@ export class MomentComponent extends Component<MomentProps, MomentState> {
 			tIsNew = this.props.myMoment.isNew(),
 			tDeleteButton = tIsActive && !tAutoSave ?
 				(<div className='SB-delete-area'>
-						<img className={'SB-button SB-delete-default'} alt={tr("dg.plugin.storyBuilder.momentComponent.deleteAlt")}
+						<img className={'SB-button SB-delete-default'} alt={tr("DG.plugin.StoryBuilder.momentComponent.deleteAlt")}
 								 onClick={this.handleDelete}
-								 title={tr("dg.plugin.storyBuilder.momentComponent.deleteTitle")}/>
+								 title={tr("DG.plugin.StoryBuilder.momentComponent.deleteTitle")}/>
 					</div>
 				) : null,
 			tControlArea = tIsActive && !tAutoSave ? <ControlArea

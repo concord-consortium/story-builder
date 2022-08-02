@@ -24,22 +24,22 @@ export class StoryArea {
 
 	private stateStrings = {
 		qClickAnotherMoment: {
-			explanation: tr("dg.plugin.storyBuilder.storyArea.qClickAnotherMomentExplanation")
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentExplanation")
 		},
 		qDupNotLastMoment: {
-			prompt: tr("dg.plugin.storyBuilder.storyArea.qDupNotLastMomentPrompt"),
-			explanation: tr("dg.plugin.storyBuilder.storyArea.qDupNotLastMomentExplanation"),
+			prompt: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentPrompt"),
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentExplanation"),
 			labeledCallbacks: [
-				{label: tr("dg.plugin.storyBuilder.storyArea.dialog.discard")},
-				{label: tr("dg.plugin.storyBuilder.storyArea.qDupNotLastMomentTwoMoments")},
-				{label: tr("dg.plugin.storyBuilder.storyArea.qDupNotLastMomentOneMoment")}
+				{label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard")},
+				{label: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentTwoMoments")},
+				{label: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentOneMoment")}
 			]
 		},
 		qRevert: {
-			explanation: tr("dg.plugin.storyBuilder.storyArea.qRevertExplanation"),
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qRevertExplanation"),
 		},
 		qClickLock: {
-			explanation: tr("dg.plugin.storyBuilder.storyArea.qClickLockExplanation")
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qClickLockExplanation")
 		}
 	};
 
@@ -82,19 +82,19 @@ export class StoryArea {
 		const template = this.stateStrings;
 		return {
 			qClickAnotherMoment: {
-				prompt: tr("dg.plugin.storyBuilder.storyArea.qClickAnotherMomentPrompt"),
+				prompt: tr("DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentPrompt"),
 				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.cancel"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.cancel"),
 						callback: this.handleCancel
 					},
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.discard"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscard
 					},
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.save"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.save"),
 						callback: this.handleSave
 					}
 				]
@@ -104,7 +104,7 @@ export class StoryArea {
 				explanation: template.qDupNotLastMoment.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.discard"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscard
 					},
 					{
@@ -118,29 +118,29 @@ export class StoryArea {
 				]
 			},
 			qRevert: {
-				prompt: tr("dg.plugin.storyBuilder.storyArea.qRevertPrompt"),
+				prompt: tr("DG.plugin.StoryBuilder.storyArea.qRevertPrompt"),
 				explanation: template.qRevert.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.cancel"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.cancel"),
 						callback: this.handleCancel
 					},
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.discard"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscard
 					}
 				]
 			},
 			qClickLock: {
-				prompt: tr("dg.plugin.storyBuilder.storyArea.qClickLockPrompt"),
+				prompt: tr("DG.plugin.StoryBuilder.storyArea.qClickLockPrompt"),
 				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.discard"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscardToLock
 					},
 					{
-						label: tr("dg.plugin.storyBuilder.storyArea.dialog.save"),
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.save"),
 						callback: this.handleSaveToLock
 					}
 				]
