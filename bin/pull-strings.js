@@ -36,7 +36,7 @@ const usage = `usage: node ${progname} {--APIToken=api-token}`
 let apiToken;
 const projectCode = 125447;
 var stringIDPrefix = 'DG.plugin';
-const defaultLocale = 'en';
+const defaultLocale = 'en-us';
 const poAPIBase = 'https://api.poeditor.com/v2';
 const poAPILanguageListEndpoint = '/languages/list';
 const poAPITranslationRequestEndpoint = '/projects/export';
