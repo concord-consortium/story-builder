@@ -66,8 +66,10 @@
     "DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentTwoMoments": "Abschnitte %@ und %@",
     "DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentOneMoment": "Nur bei Abschnitt %@",
     "DG.plugin.StoryBuilder.storyArea.qRevertPrompt": "Änderungen verwerfen?",
+    "DG.plugin.StoryBuilder.storyArea.qRevertExplanation": "Änderungen an Abschnitt %@ verwerfen (und zum vorherigen Zustand zurückkehren)?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Änderungen speichern oder verwerfen?",
-    "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Es wurden Änderungen in Abschnitt %@ gemacht. Sollen die Änderungen gespeichert oder veworfen werden?"
+    "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Es wurden Änderungen in Abschnitt %@ gemacht. Sollen die Änderungen gespeichert oder veworfen werden?",
+    "DG.plugin.StoryBuilder.description": "Erstelle eine Erzählung zu Deiner Untersuchung."
   },
   "pt-br": {
     "DG.plugin.StoryBuilder.pluginName": "Criador de Histórias",
@@ -102,6 +104,7 @@
     "DG.plugin.StoryBuilder.storyArea.qRevertPrompt": "Excluir modificações?",
     "DG.plugin.StoryBuilder.storyArea.qRevertExplanation": "Você gostaria de descartar as alterações feitas no Momento %@ (e voltar ao estado anterior a elas)?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Salvar ou excluir modificações?",
-    "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Você alterou o Momento %@. Você gostaria de salvar ou descartar tais mudanças?"
+    "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Você alterou o Momento %@. Você gostaria de salvar ou descartar tais mudanças?",
+    "DG.plugin.StoryBuilder.description": "Crie uma história para a sua investigação."
   }
 }
