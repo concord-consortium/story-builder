@@ -22,8 +22,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "strings:dev": "bin/pull-dev-strings DG.plugin.StoryBuilder > src/utilities/strings.json",
-    "strings:prod": "node bin/pull-strings.js --prefix=DG.plugin.StoryBuilder > src/utilities/strings.json"
+    "strings:pull-dev": "bin/pull-dev-strings DG.plugin.StoryBuilder > src/utilities/strings.json --",
+    "strings:pull": "node bin/pull-strings.js --prefix=DG.plugin.StoryBuilder --out=src/utilities/strings.json"
   },
   "eslintConfig": {
     "extends": "react-app"
