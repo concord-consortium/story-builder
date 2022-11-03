@@ -106,5 +106,13 @@
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Salvar ou excluir modificações?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Você alterou o Momento %@. Você gostaria de salvar ou descartar tais mudanças?",
     "DG.plugin.StoryBuilder.description": "Crie uma história para a sua investigação."
+  },
+  "es": {
+    "DG.plugin.StoryBuilder.pluginName": "Creador de historias",
+    "DG.plugin.StoryBuilder.controlArea.discardAlt": "Descartar cambios",
+    "DG.plugin.StoryBuilder.controlArea.saveAlt": "Guardar",
+    "DG.plugin.StoryBuilder.controlArea.saveTooltip": "Guardar este momento",
+    "DG.plugin.StoryBuilder.controlArea.newAlt": "Crear un nuevo momento",
+    "DG.plugin.StoryBuilder.controlArea.newTooltip": "Agregar un nuevo momento a la derecha"
   }
 }
