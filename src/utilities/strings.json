@@ -141,5 +141,15 @@
     "DG.plugin.StoryBuilder.storyArea.qRevertExplanation": "¿Le gustaría descartar los cambios que realizó en Momento %@ (y volver al estado en el que se encontraba antes de realizar los cambios)?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "¿Guardar o descartar los cambios?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Ha realizado cambios en el Momento %@. ¿Desea guardar o descartar estos cambios?"
+  },
+  "tr": {
+    "DG.plugin.StoryBuilder.controlArea.discardAlt": "Değişiklikleri sil",
+    "DG.plugin.StoryBuilder.controlArea.saveAlt": "Kaydet",
+    "DG.plugin.StoryBuilder.buttons.helpAlt": "yardım al",
+    "DG.plugin.StoryBuilder.momentManager.firstTitle": "başlat ...",
+    "DG.plugin.StoryBuilder.storyArea.dialog.cancel": "İptal et",
+    "DG.plugin.StoryBuilder.storyArea.dialog.save": "Kaydet",
+    "DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentPrompt": "Değişiklikleri kaydet ya da sil?",
+    "DG.plugin.StoryBuilder.storyArea.qRevertPrompt": "Değişiklikleri sil?"
   }
 }
