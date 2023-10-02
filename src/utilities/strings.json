@@ -147,6 +147,7 @@
     "DG.plugin.StoryBuilder.description": "Araştırmanızın anlatısını oluşturun.",
     "DG.plugin.StoryBuilder.controlArea.discardAlt": "Değişiklikleri sil",
     "DG.plugin.StoryBuilder.controlArea.saveAlt": "Kaydet",
+    "DG.plugin.StoryBuilder.dialog.optOutCheckbox": "Tekrar sorma (her zaman kaydet)",
     "DG.plugin.StoryBuilder.buttons.helpAlt": "yardım al",
     "DG.plugin.StoryBuilder.buttons.helpTitle": "Hikâye Oluşturucu kullanımına yönelik yardı al",
     "DG.plugin.StoryBuilder.momentTextboxContent": "Ne yaptınız? Niçin yaptınız?",
