@@ -151,7 +151,7 @@
     "DG.plugin.StoryBuilder.buttons.helpAlt": "yardım al",
     "DG.plugin.StoryBuilder.buttons.helpTitle": "Hikâye Oluşturucu kullanımına yönelik yardı al",
     "DG.plugin.StoryBuilder.momentTextboxContent": "Ne yaptınız? Niçin yaptınız?",
-    "DG.plugin.StoryBuilder.momentTextboxFirstContent": "Burası veri hikâyenizin başlangıç kısmı.",
+    "DG.plugin.StoryBuilder.momentTextboxFirstContent": "Bu kısım veri hikâyenizin başlangıç bölümüdür.",
     "DG.plugin.StoryBuilder.momentManager.firstTitle": "başlat ...",
     "DG.plugin.StoryBuilder.storyArea.dialog.cancel": "İptal et",
     "DG.plugin.StoryBuilder.storyArea.dialog.discard": "Göz ardı et",
