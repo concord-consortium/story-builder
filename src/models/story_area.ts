@@ -6,6 +6,7 @@ import {
 	needNarrativeTextBox, setBusyIndicator,
 } from "../utilities/utilities";
 import {kSBVersion} from "./story_builder";
+import tr from "../utilities/translate";
 
 export class StoryArea {
 
@@ -23,24 +24,22 @@ export class StoryArea {
 
 	private stateStrings = {
 		qClickAnotherMoment: {
-			explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?'
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentExplanation")
 		},
 		qDupNotLastMoment: {
-			prompt: 'Save changes before creating Moment %@?',
-			explanation: `You have made changes to Moment %@. Would you like to save those changes to both Moments %@
-				 and %@ or only to the new Moment %@?`,
+			prompt: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentPrompt"),
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentExplanation"),
 			labeledCallbacks: [
-				{label: 'Discard'},
-				{label: 'Moments %@ and %@'},
-				{label: 'Only Moment %@'}
+				{label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard")},
+				{label: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentTwoMoments")},
+				{label: tr("DG.plugin.StoryBuilder.storyArea.qDupNotLastMomentOneMoment")}
 			]
 		},
 		qRevert: {
-			explanation: `Would you like to discard the changes you made to Moment %@ (and revert to the state it was
-				in before you made changes)?`,
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qRevertExplanation"),
 		},
 		qClickLock: {
-			explanation: 'You have made changes to Moment %@. Would you like to save or discard these changes?'
+			explanation: tr("DG.plugin.StoryBuilder.storyArea.qClickLockExplanation")
 		}
 	};
 
@@ -83,19 +82,19 @@ export class StoryArea {
 		const template = this.stateStrings;
 		return {
 			qClickAnotherMoment: {
-				prompt: 'Save or discard changes?',
+				prompt: tr("DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentPrompt"),
 				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: 'Cancel',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.cancel"),
 						callback: this.handleCancel
 					},
 					{
-						label: 'Discard',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscard
 					},
 					{
-						label: 'Save',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.save"),
 						callback: this.handleSave
 					}
 				]
@@ -105,7 +104,7 @@ export class StoryArea {
 				explanation: template.qDupNotLastMoment.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: 'Discard',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscard
 					},
 					{
@@ -119,29 +118,29 @@ export class StoryArea {
 				]
 			},
 			qRevert: {
-				prompt: 'Discard changes?',
+				prompt: tr("DG.plugin.StoryBuilder.storyArea.qRevertPrompt"),
 				explanation: template.qRevert.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: 'Cancel',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.cancel"),
 						callback: this.handleCancel
 					},
 					{
-						label: 'Discard',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscard
 					}
 				]
 			},
 			qClickLock: {
-				prompt: 'Save or discard changes?',
+				prompt: tr("DG.plugin.StoryBuilder.storyArea.qClickLockPrompt"),
 				explanation: template.qClickAnotherMoment.explanation.slice(),
 				labeledCallbacks: [
 					{
-						label: 'Discard',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.discard"),
 						callback: this.handleDiscardToLock
 					},
 					{
-						label: 'Save',
+						label: tr("DG.plugin.StoryBuilder.storyArea.dialog.save"),
 						callback: this.handleSaveToLock
 					}
 				]

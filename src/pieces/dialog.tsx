@@ -3,6 +3,7 @@
  */
 
 import React, {Component} from "react";
+import tr from "../utilities/translate";
 
 export class Dialog extends Component<{
 	dialogState: {
@@ -48,7 +49,7 @@ export class Dialog extends Component<{
 						this_.props.checkboxCallback(isChecked)
 						this_.setState({isAutoSave: isChecked})
 					}}/>
-					Don't ask me again (always save)
+					{tr("DG.plugin.StoryBuilder.dialog.optOutCheckbox")}
 				</label>
 			)
 		}
