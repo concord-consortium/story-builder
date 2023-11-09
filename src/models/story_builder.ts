@@ -2,7 +2,7 @@ import {StoryArea} from "./story_area";
 import {initializePlugin} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 
-export const kSBVersion = "0.84";
+export const kSBVersion = "0.85";
 export class StoryBuilder {
 
 	public storyArea:StoryArea;

@@ -66,6 +66,7 @@ export class TitleEditor extends Component<{
 				id={"currentMomentTitleEditBox"}
 				ref={this.textArea}
 				disabled={!this.props.myMoment.isActive() || !this.props.canEdit}
+				style={{pointerEvents: this.props.myMoment.isActive() ? 'auto' : 'none'}}
 				className={"SB-moment-title SB-title-editor"}
 				onFocus={this.handleFocus}
 				onBlur={(e:any)=> {
