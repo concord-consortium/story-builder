@@ -155,7 +155,7 @@
     "DG.plugin.StoryBuilder.emptyMoment.createAlt": "yeni anlatı oluştur",
     "DG.plugin.StoryBuilder.emptyMoment.createTitle": "Yeni bir anlatı oluşturmak için tıklayınız",
     "DG.plugin.StoryBuilder.buttons.helpAlt": "yardım al",
-    "DG.plugin.StoryBuilder.buttons.helpTitle": "Anlatı Oluşturucu kullanımına yönelik yardı al",
+    "DG.plugin.StoryBuilder.buttons.helpTitle": "Anlatı Oluşturucu kullanımına yönelik yardım al",
     "DG.plugin.StoryBuilder.buttons.autoSaveTitleAuto": "Mevcut durumda anlatılarda yapılan değişiklikler otomatik olarak kaydedilecektir. Anlatıları kaydetme ya da silme seçeneklerini görmek için tıklayınız.",
     "DG.plugin.StoryBuilder.buttons.autoSaveTitleManual": "Mevcut durumda anlatılarda yapılan değişikliklerin kaydedilmesi veya silinmesi istenecektir. Anlatılardaki değişiklikleri sormaksızın otomatik olarak kaydetmek için tıklayınız.",
     "DG.plugin.StoryBuilder.momentComponent.deleteAlt": "Bu anlatıyı sil",
