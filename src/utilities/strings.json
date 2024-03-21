@@ -35,6 +35,22 @@
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Save or discard changes?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "You have made changes to Moment %@. Would you like to save or discard these changes?"
   },
+  "he": {
+    "DG.plugin.StoryBuilder.controlArea.discardAlt": "מחק שינויים",
+    "DG.plugin.StoryBuilder.controlArea.discardTooltip": "מחק שינויים עד לרגע זה",
+    "DG.plugin.StoryBuilder.controlArea.saveAlt": "שמור",
+    "DG.plugin.StoryBuilder.controlArea.saveTooltip": "שמור רגע זה",
+    "DG.plugin.StoryBuilder.controlArea.newAlt": "צור רגע חדש",
+    "DG.plugin.StoryBuilder.controlArea.newTooltip": "הוסף רגע חדש מימין",
+    "DG.plugin.StoryBuilder.dialog.optOutCheckbox": "אל תשאל שוב (שמור תמיד)",
+    "DG.plugin.StoryBuilder.emptyMoment.createAlt": "צור רגע חדש",
+    "DG.plugin.StoryBuilder.emptyMoment.createTitle": "לחץ ליצירת רגע חדש",
+    "DG.plugin.StoryBuilder.buttons.helpAlt": "עזרה",
+    "DG.plugin.StoryBuilder.momentComponent.deleteAlt": "מחק רגע זה",
+    "DG.plugin.StoryBuilder.momentComponent.deleteTitle": "מחק רגע זה",
+    "DG.plugin.StoryBuilder.storyArea.qRevertPrompt": "למחוק שינויים?",
+    "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "לשמור או למחוק שינויים?"
+  },
   "ko": {
     "DG.plugin.StoryBuilder.pluginName": "스토리 빌더",
     "DG.plugin.StoryBuilder.description": "이야기를 작성하세요.",
