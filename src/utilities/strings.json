@@ -35,6 +35,21 @@
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Save or discard changes?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "You have made changes to Moment %@. Would you like to save or discard these changes?"
   },
+  "fr": {
+    "DG.plugin.StoryBuilder.controlArea.discardAlt": "Annuler les changements",
+    "DG.plugin.StoryBuilder.controlArea.saveAlt": "Enregistrer",
+    "DG.plugin.StoryBuilder.controlArea.saveTooltip": "Sauvegarder ce moment",
+    "DG.plugin.StoryBuilder.buttons.helpAlt": "obtenir de l'aide",
+    "DG.plugin.StoryBuilder.momentTextboxContent": "Qu'as-tu fait? Pourquoi l'as-tu fait?",
+    "DG.plugin.StoryBuilder.momentTextboxFirstContent": "Ceci est le début de ton histoire de données.",
+    "DG.plugin.StoryBuilder.momentManager.firstTitle": "début ...",
+    "DG.plugin.StoryBuilder.storyArea.dialog.cancel": "Annuler",
+    "DG.plugin.StoryBuilder.storyArea.dialog.discard": "Ecarter",
+    "DG.plugin.StoryBuilder.storyArea.dialog.save": "Sauvegarder",
+    "DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentPrompt": "Sauvegarder ou annuler les changements?",
+    "DG.plugin.StoryBuilder.storyArea.qRevertPrompt": "Annuler les changements?",
+    "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Sauvegarder ou annuler les changements?"
+  },
   "he": {
     "DG.plugin.StoryBuilder.controlArea.discardAlt": "מחק שינויים",
     "DG.plugin.StoryBuilder.controlArea.discardTooltip": "מחק שינויים עד לרגע זה",
