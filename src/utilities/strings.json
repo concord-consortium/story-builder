@@ -105,6 +105,15 @@
     "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Sauvegarder ou annuler les changements?",
     "DG.plugin.StoryBuilder.storyArea.qClickLockExplanation": "Vous avez apporté des changements à Moment %@. Voulez-vous sauvegarder ou annuler ces modifications?"
   },
+  "de": {
+    "DG.plugin.StoryBuilder.controlArea.discardAlt": "Änderungen verwerfen",
+    "DG.plugin.StoryBuilder.controlArea.saveAlt": "Speichern",
+    "DG.plugin.StoryBuilder.buttons.helpAlt": "Hilfe erhalten",
+    "DG.plugin.StoryBuilder.storyArea.dialog.save": "Speichern",
+    "DG.plugin.StoryBuilder.storyArea.qClickAnotherMomentPrompt": "Speichern oder Änderungen verwerfen?",
+    "DG.plugin.StoryBuilder.storyArea.qRevertPrompt": "Änderungen verwerfen?",
+    "DG.plugin.StoryBuilder.storyArea.qClickLockPrompt": "Speichern oder Änderungen verwerfen?"
+  },
   "he": {
     "DG.plugin.StoryBuilder.controlArea.discardAlt": "מחק שינויים",
     "DG.plugin.StoryBuilder.controlArea.discardTooltip": "מחק שינויים עד לרגע זה",
