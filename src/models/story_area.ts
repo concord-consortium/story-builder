@@ -282,6 +282,18 @@ export class StoryArea {
 				} else if (iCommand.values.operation === 'commitEdit' &&
 					iCommand.values.id === this.narrativeBoxID) {
 					this.momentsManager.setNewNarrative(iCommand.values.text);
+				} else if (iCommand.values.id !== undefined &&
+					iCommand.values.id !== this.narrativeBoxID) {
+					// CODAP v3 includes the component id in every notification. If it's not our
+					// narrative box, this is a real user action — mark the moment dirty without
+					// consulting justMadeInitialMomentAndText. That flag was designed to swallow
+					// the v2 echo of our own narrative-box create (v2 omits the id), but v3
+					// excludes the requester from broadcasts, so the flag would otherwise
+					// silently eat the first legitimate user action.
+					if (!this.restoreInProgress) {
+						this.momentsManager.markCurrentMomentAsChanged(true);
+						this.changeCount++;
+					}
 				} else if (!(this.justMadeInitialMomentAndText || this.restoreInProgress)) {
 					this.momentsManager.markCurrentMomentAsChanged(true);
 					this.changeCount++;
