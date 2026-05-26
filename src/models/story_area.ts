@@ -290,15 +290,17 @@ export class StoryArea {
 					// to swallow the v2 echo of our own narrative-box create (v2 component
 					// notifications omit the id), but v3 excludes the requester from broadcasts,
 					// so the flag would otherwise silently eat the first legitimate user action.
-					// Clear the flag once we've observed any v3 component notification: at that
-					// point we know we're in v3, the v2 echo will never arrive, and leaving the
-					// flag set would let the catch-all below swallow a later id-less
-					// notification (e.g. a dataContext change).
 					if (!this.restoreInProgress) {
 						this.momentsManager.markCurrentMomentAsChanged(true);
 						this.changeCount++;
-						this.justMadeInitialMomentAndText = false;
 					}
+					// Clear the flag unconditionally: the flag exists only to swallow the
+					// id-less v2 echo, so any id-bearing notification proves the echo will
+					// never arrive (we're in v3, or the echo is already past). Clearing
+					// outside the restoreInProgress guard handles the narrow window where
+					// the new branch fires mid-restore — dirty is still suppressed there,
+					// but the flag must not be left set to bite a later id-less notification.
+					this.justMadeInitialMomentAndText = false;
 				} else if (!(this.justMadeInitialMomentAndText || this.restoreInProgress)) {
 					this.momentsManager.markCurrentMomentAsChanged(true);
 					this.changeCount++;
