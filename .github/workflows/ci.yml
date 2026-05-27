@@ -1,0 +1,89 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build_test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Jest tests
+        run: CI=true npm test -- --watchAll=false
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+      - name: Build
+        run: npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build/
+
+  deploy:
+    name: Deploy to S3
+    needs: build_test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: story-builder-deploy
+      cancel-in-progress: false
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: Validate tag matches kSBVersion and package.json
+        run: |
+          TAG_VERSION="${TAG#v}"
+          SB_VERSION=$(sed -nE 's/.*kSBVersion = "([^"]+)".*/\1/p' src/models/story_builder.ts)
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "tag=$TAG_VERSION kSBVersion=$SB_VERSION package.json=$PKG_VERSION"
+          if [[ "$TAG_VERSION" != "$SB_VERSION" || "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "::error::Version mismatch — refusing to deploy."
+            exit 1
+          fi
+
+      - name: Sync to codap-resources (V3 read path)
+        run: |
+          aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete
+
+      - name: Sync to models-resources root (canonical)
+        run: |
+          aws s3 sync build/ s3://models-resources/story-builder/ --delete \
+            --exclude "version/*"
+
+      - name: Archive to models-resources/version/<tag>/
+        run: |
+          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/
+
+      - name: Invalidate CloudFront (codap-resources)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E1RS9TZVZBEEEC \
+            --paths "/plugins/story-builder/*"
+
+      - name: Invalidate CloudFront (models-resources)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E1QHTGVGYD1DWZ \
+            --paths "/story-builder/*"
