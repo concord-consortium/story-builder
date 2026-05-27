@@ -38,6 +38,8 @@ Out of scope:
 | Sync mechanism | Plain `aws s3 sync --delete` (no `--size-only`) — correct in CI because build mtimes are always fresh |
 | CloudFront invalidation | Automatic, last step of deploy job |
 | Concurrency | `concurrency: { group: story-builder-deploy, cancel-in-progress: false }` on the deploy job to serialize tag races |
+| AWS authentication | GitHub OIDC → IAM role assumption via `aws-actions/configure-aws-credentials@v4`. No long-lived secrets. Role: `arn:aws:iam::612297603577:role/story-builder`, set up via `concord-consortium/starter-projects/scripts/create-deploy-role.sh`. |
+| IAM policy | Shared managed policy `S3-deploy-by-role-tag` (covers `models-resources/story-builder/*` via RepoName tag) + supplemental inline policy for `codap-resources/plugins/story-builder/*` writes and `cloudfront:CreateInvalidation` on both distributions. |
 | Generalization to other plugins | None for now — copy-paste when needed |
 
 ## Workflow architecture
@@ -116,14 +118,14 @@ Notes:
 needs: build_test
 if: startsWith(github.ref, 'refs/tags/v')
 runs-on: ubuntu-latest
+permissions:
+  id-token: write                # required for OIDC token issuance
+  contents: read
 concurrency:
   group: story-builder-deploy
   cancel-in-progress: false
 env:
-  AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_DEFAULT_REGION:    us-east-1
-  TAG:                   ${{ github.ref_name }}      # e.g., "v0.87"
+  TAG: ${{ github.ref_name }}    # e.g., "v0.87"
 steps:
   - uses: actions/checkout@v4                        # need source for validation step
   - uses: actions/download-artifact@v4
@@ -138,6 +140,11 @@ steps:
         echo "Version mismatch: tag=$TAG_VERSION kSBVersion=$SB_VERSION package.json=$PKG_VERSION"
         exit 1
       fi
+
+  - uses: aws-actions/configure-aws-credentials@v4
+    with:
+      role-to-assume: arn:aws:iam::612297603577:role/story-builder
+      aws-region: us-east-1
 
   - name: Sync to codap-resources (v3 read path)
     run: |
@@ -248,14 +255,18 @@ Stage 2 is also the real first ship of the bugfix, so commissioning and shipping
 
 ### Verify before the first deploy (blocking)
 
-1. **AWS GitHub secrets accessible to `concord-consortium/story-builder`.** ⚠️ **Confirmed missing as of 2026-05-26** — neither `AWS_ACCESS_KEY_ID` nor `AWS_SECRET_ACCESS_KEY` is inherited from the org. Other plugin repos (e.g., `noaa-codap-plugin`) use these names, so they exist *somewhere* — likely scoped to specific repos rather than org-wide. Coordinate with the AWS admin to provision the secrets for `story-builder`: org-level inheritance, repo-level secrets, or a GitHub Environment. The IAM principal those creds back must grant the perms in (2). Build-test runs on PR push without secrets, so the workflow can be merged first and the deploy job will simply not work until the secrets land.
-2. **IAM policy for the role those creds back.** Must grant:
-   - `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket` on `codap-resources/plugins/story-builder/*`
-   - Same three on `models-resources/story-builder/*`
-   - `cloudfront:CreateInvalidation` on the codap-resources distribution (`E1RS9TZVZBEEEC`)
-   - `cloudfront:CreateInvalidation` on the models-resources distribution (`E1QHTGVGYD1DWZ`)
-3. **Bucket public-read access.** ✅ **Confirmed 2026-05-26:** both `codap-resources` and `models-resources` have bucket policies that grant `s3:GetObject` to `Principal: *`, so all uploaded objects are publicly readable by default. No `--acl public-read` flag is needed on the AWS CLI commands.
-4. **GitHub Actions enabled** on the story-builder repo (default for org repos; verify the setting is on).
+1. **AWS authentication via OIDC.** No long-lived secrets — story-builder follows the org's current pattern: GitHub OIDC → IAM role assumption. **Setup steps**, run by someone with IAM admin in account `612297603577`:
+   - **a.** From a checkout of `concord-consortium/starter-projects` (or this repo, since the script is self-contained), run `./scripts/create-deploy-role.sh story-builder`. This creates IAM role `story-builder`, tags it `RepoName=story-builder`, sets a trust policy that limits assumption to workflows in `concord-consortium/story-builder`, and attaches the shared managed policy `S3-deploy-by-role-tag` (which covers `s3://models-resources/story-builder/*` via the `RepoName` tag).
+   - **b.** Attach a supplemental inline policy to the same role covering the things the shared policy doesn't:
+     - `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::codap-resources/plugins/story-builder/*`
+     - `s3:ListBucket` on `arn:aws:s3:::codap-resources` with condition `s3:prefix` like `plugins/story-builder/*` (needed for `aws s3 sync` to list the prefix)
+     - `cloudfront:CreateInvalidation` on distribution `E1RS9TZVZBEEEC` (codap-resources) and `E1QHTGVGYD1DWZ` (models-resources)
+   - **c.** Verify by inspecting the new role: `aws iam get-role --role-name story-builder` and `aws iam list-attached-role-policies --role-name story-builder`.
+
+   No GitHub repo secrets are required — the workflow uses `aws-actions/configure-aws-credentials@v4` with `role-to-assume` and the OIDC `id-token` permission. `build_test` runs without any AWS involvement.
+
+2. **Bucket public-read access.** ✅ **Confirmed 2026-05-26:** both `codap-resources` and `models-resources` have bucket policies that grant `s3:GetObject` to `Principal: *`, so all uploaded objects are publicly readable by default. No `--acl public-read` flag is needed on the AWS CLI commands.
+3. **GitHub Actions enabled** on the story-builder repo (default for org repos; verify the setting is on).
 
 ### Values resolved
 
