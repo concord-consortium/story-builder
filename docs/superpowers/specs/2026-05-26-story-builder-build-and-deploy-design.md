@@ -141,19 +141,16 @@ steps:
 
   - name: Sync to codap-resources (v3 read path)
     run: |
-      aws s3 sync build/ s3://codap-resources/plugins/story-builder/ \
-        --acl public-read --delete
+      aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete
 
   - name: Sync to models-resources root (canonical)
     run: |
-      aws s3 sync build/ s3://models-resources/story-builder/ \
-        --acl public-read --delete \
+      aws s3 sync build/ s3://models-resources/story-builder/ --delete \
         --exclude "version/*"
 
   - name: Archive to models-resources/version/<tag>/
     run: |
-      aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ \
-        --acl public-read
+      aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/
 
   - name: Invalidate CloudFront (codap-resources)
     run: |
@@ -173,7 +170,7 @@ Flag rationale:
 - **`--delete`** on the two "live" sync targets so removed or renamed bundle files don't linger.
 - **`--exclude "version/*"`** on the models-resources root sync so the version archive isn't wiped. (No `--exclude "branch/*"` — we don't deploy branches.)
 - **Version-archive sync omits `--delete`** because it's a write to a fresh path.
-- **`--acl public-read`** matches the existing bucket convention; assumes ACLs remain enabled on both buckets (see Prerequisites).
+- **No `--acl public-read`.** Both buckets have bucket policies that grant `s3:GetObject` to `Principal: *` on all objects, so per-object ACLs are redundant. Dropping the flag also makes the workflow robust against future moves to `BucketOwnerEnforced` ownership (AWS's recommended default for new buckets, which disables per-object ACLs and would cause `--acl public-read` to fail at PUT time).
 
 Step order: sync codap-resources, sync models-resources root, write version archive, invalidate codap-resources CloudFront, invalidate models-resources CloudFront. CloudFront invalidations run last so a partial failure earlier in the deploy leaves the old (cached) build serving until the run is recovered.
 
@@ -251,19 +248,19 @@ Stage 2 is also the real first ship of the bugfix, so commissioning and shipping
 
 ### Verify before the first deploy (blocking)
 
-1. **AWS GitHub secrets accessible to `concord-consortium/story-builder`.** Org-level `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` exist and are inherited. (Org-level is the assumption based on other repos; if they turn out to be repo-level elsewhere, provision them here.)
+1. **AWS GitHub secrets accessible to `concord-consortium/story-builder`.** ⚠️ **Confirmed missing as of 2026-05-26** — neither `AWS_ACCESS_KEY_ID` nor `AWS_SECRET_ACCESS_KEY` is inherited from the org. Other plugin repos (e.g., `noaa-codap-plugin`) use these names, so they exist *somewhere* — likely scoped to specific repos rather than org-wide. Coordinate with the AWS admin to provision the secrets for `story-builder`: org-level inheritance, repo-level secrets, or a GitHub Environment. The IAM principal those creds back must grant the perms in (2). Build-test runs on PR push without secrets, so the workflow can be merged first and the deploy job will simply not work until the secrets land.
 2. **IAM policy for the role those creds back.** Must grant:
    - `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket` on `codap-resources/plugins/story-builder/*`
    - Same three on `models-resources/story-builder/*`
    - `cloudfront:CreateInvalidation` on the codap-resources distribution (`E1RS9TZVZBEEEC`)
-   - `cloudfront:CreateInvalidation` on the models-resources distribution (ID TBD)
-3. **Bucket ACL configuration.** Both buckets must permit `--acl public-read` writes. Newer S3 buckets default to "ACLs disabled" (bucket-owner-enforced ownership), which makes `--acl public-read` fail at PUT time. If either bucket has ACLs disabled, either re-enable them or switch to bucket-policy-based public access and drop `--acl public-read` from the workflow.
+   - `cloudfront:CreateInvalidation` on the models-resources distribution (`E1QHTGVGYD1DWZ`)
+3. **Bucket public-read access.** ✅ **Confirmed 2026-05-26:** both `codap-resources` and `models-resources` have bucket policies that grant `s3:GetObject` to `Principal: *`, so all uploaded objects are publicly readable by default. No `--acl public-read` flag is needed on the AWS CLI commands.
 4. **GitHub Actions enabled** on the story-builder repo (default for org repos; verify the setting is on).
 
-### Values still to look up
+### Values resolved
 
-1. **CloudFront distribution ID for `models-resources`.** Workflow has a `<MODELS_RESOURCES_DIST_ID>` placeholder; resolve via `aws cloudfront list-distributions` or by asking the org's AWS maintainer.
-2. **CloudFront serving URL for `models-resources/story-builder/`.** Not blocking for this design (we keep `codap-resources` as the V3 read path), but useful for any eventual V3-side migration.
+- **CloudFront distribution ID for `models-resources`.** `E1QHTGVGYD1DWZ` (serves `models-resources.concord.org` and `resources.models.concord.org`). Resolved 2026-05-26.
+- **CloudFront serving URL for `models-resources/story-builder/`.** `https://models-resources.concord.org/story-builder/` (assuming the standard generic-distribution path layout used by other plugins in that bucket). Not used by V3 today but useful for any eventual migration.
 
 ## Future work (explicitly out of this design)
 
