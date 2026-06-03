@@ -50,7 +50,7 @@ A single GitHub Actions workflow at `.github/workflows/ci.yml` with two jobs.
 on:
   push:
     branches: [master]
-    tags: ['v*']
+    tags: ['v[0-9]*']
   pull_request:
 
 jobs:
@@ -104,6 +104,7 @@ steps:
     with:
       name: build
       path: build/
+      if-no-files-found: error
 ```
 
 Notes:
@@ -118,9 +119,11 @@ Notes:
 needs: build_test
 if: startsWith(github.ref, 'refs/tags/v')
 runs-on: ubuntu-latest
+timeout-minutes: 15
 permissions:
   id-token: write                # required for OIDC token issuance
   contents: read
+  actions: read                  # required for download-artifact@v4 under restricted permissions
 concurrency:
   group: story-builder-deploy
   cancel-in-progress: false
@@ -134,10 +137,17 @@ steps:
   - name: Validate tag matches kSBVersion and package.json
     run: |
       TAG_VERSION="${TAG#v}"
-      SB_VERSION=$(sed -nE "s/.*kSBVersion = \"([^\"]+)\".*/\1/p" src/models/story_builder.ts)
+      SB_VERSION=$(sed -nE "s/.*kSBVersion = \"([^\"]+)\".*/\1/p" src/models/story_builder.ts | head -1)
       PKG_VERSION=$(node -p "require('./package.json').version")
-      if [[ "$TAG_VERSION" != "$SB_VERSION" || "$TAG_VERSION" != "$PKG_VERSION" ]]; then
-        echo "Version mismatch: tag=$TAG_VERSION kSBVersion=$SB_VERSION package.json=$PKG_VERSION"
+      if [[ -z "$SB_VERSION" || -z "$PKG_VERSION" || "$TAG_VERSION" != "$SB_VERSION" || "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+        echo "Mismatch or empty: tag=$TAG_VERSION kSBVersion=$SB_VERSION package.json=$PKG_VERSION"
+        exit 1
+      fi
+
+  - name: Sanity-check build artifact
+    run: |
+      if [[ ! -s build/index.html ]]; then
+        echo "build/index.html missing or empty — refusing to sync"
         exit 1
       fi
 
@@ -145,6 +155,11 @@ steps:
     with:
       role-to-assume: arn:aws:iam::612297603577:role/story-builder
       aws-region: us-east-1
+
+  # Archive first so canonical URLs are never updated without a matching archive.
+  - name: Archive to models-resources/version/<tag>/
+    run: |
+      aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete
 
   - name: Sync to codap-resources (v3 read path)
     run: |
@@ -154,10 +169,6 @@ steps:
     run: |
       aws s3 sync build/ s3://models-resources/story-builder/ --delete \
         --exclude "version/*"
-
-  - name: Archive to models-resources/version/<tag>/
-    run: |
-      aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/
 
   - name: Invalidate CloudFront (codap-resources)
     run: |
@@ -174,12 +185,26 @@ steps:
 
 Flag rationale:
 - **No `--size-only` anywhere.** In CI, build artifacts always have fresh mtimes (newer than any prior S3 LastModified), so plain `aws s3 sync` uploads everything that has changed by mtime — which, in CI, is effectively the whole build. Cost: a few MB of bandwidth per release. Benefit: avoids the documented bug where `--size-only` misses content changes that happen to preserve file size (e.g., `index.html` with a swapped hashed-asset reference).
-- **`--delete`** on the two "live" sync targets so removed or renamed bundle files don't linger.
+- **`--delete` on all three syncs** (including the version archive) so removed or renamed bundle files don't linger anywhere, even on a force-pushed tag re-deploy.
 - **`--exclude "version/*"`** on the models-resources root sync so the version archive isn't wiped. (No `--exclude "branch/*"` — we don't deploy branches.)
-- **Version-archive sync omits `--delete`** because it's a write to a fresh path.
 - **No `--acl public-read`.** Both buckets have bucket policies that grant `s3:GetObject` to `Principal: *` on all objects, so per-object ACLs are redundant. Dropping the flag also makes the workflow robust against future moves to `BucketOwnerEnforced` ownership (AWS's recommended default for new buckets, which disables per-object ACLs and would cause `--acl public-read` to fail at PUT time).
 
-Step order: sync codap-resources, sync models-resources root, write version archive, invalidate codap-resources CloudFront, invalidate models-resources CloudFront. CloudFront invalidations run last so a partial failure earlier in the deploy leaves the old (cached) build serving until the run is recovered.
+Step order: **write the version archive first**, then sync codap-resources, then sync models-resources root, then invalidate codap-resources CloudFront, then invalidate models-resources CloudFront. Archive-first means the canonical URLs are never updated without a corresponding archive existing — a partial failure between archive and canonical leaves the version archive present but the canonical still serving the previous release, which is a recoverable state. CloudFront invalidations run last so a partial failure earlier in the deploy leaves the old (cached) build serving until the run is recovered.
+
+### Defensive flags
+
+- **`if-no-files-found: error`** on `actions/upload-artifact@v4`. Default is `warn`, which would silently produce an empty artifact if `build/` were ever missing or empty; combined with `aws s3 sync --delete` on the download, that would wipe production. Setting `error` makes the upload step fail loudly instead.
+- **`Sanity-check build artifact` step** before any AWS call. Checks `test -s build/index.html`. Belt-and-suspenders for the same failure mode — if the artifact contents are intact at upload time but somehow truncated or partially-extracted on download, the sync is blocked before it can do damage.
+- **Validation step also fails on empty `kSBVersion` or `package.json` version.** A renamed file or moved constant would produce empty strings; without the empty-check, two empty strings would `==` and validation would pass spuriously. The `head -1` pipe on `sed` also defends against multiple matches (e.g., a stale `// kSBVersion = "0.85"` comment).
+- **`timeout-minutes: 15`** on the deploy job. Default GHA job timeout is 6 hours; a hung AWS call could otherwise burn that whole budget. 15 minutes is well above a normal deploy's runtime (~2 minutes typical).
+- **`actions: read`** on the deploy job's `permissions:` block. Required by `actions/download-artifact@v4` under restricted permissions (any explicit `permissions:` block sets unlisted scopes to `none`, including the `actions` scope the download API uses).
+- **Tag filter `'v[0-9]*'`** (not `'v*'`). Restricts the deploy trigger to tags that look like version markers (`v0.86`, `v1.0.0`, etc.), so stray `v`-prefixed tags like `vibe-check` don't fire the job at all. Validation is still the authoritative check for matching versions, but the tighter glob is a defense-in-depth layer.
+
+### Known limitations (accepted, not fixed)
+
+- **No concurrency group on `build_test`.** Two tags pushed close together create two independent `build_test` runs in parallel; whichever finishes first enters the `deploy` queue first. In the pathological case where `build_test` ordering inverts the push order, the older tag's deploy runs second and overwrites the newer tag's canonical content. Mitigation: don't push tags faster than `build_test` completes (~2 minutes). Adding concurrency to `build_test` would also serialize PR builds against tag deploys, hurting iteration; the trade-off doesn't favor protecting against a corner case that's unlikely under normal release cadence.
+- **Trigger duplication on tagged releases.** Pushing a commit to master AND pushing a release tag at that commit fires two parallel `build_test` runs (one for `push:master`, one for `push:tags`). CI cost only; no correctness impact.
+- **CloudFront `/story-builder/*` invalidation pattern is wider than strictly needed.** It also invalidates the immutable per-version archive paths. Within CloudFront's free 1000-paths-per-month quota; tightening to a list of specific paths (`/story-builder/index.html`, `/story-builder/static/*`, etc.) is brittle as the build output evolves.
 
 ## Error handling
 

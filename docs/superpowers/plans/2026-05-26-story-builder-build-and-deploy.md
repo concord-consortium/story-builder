@@ -174,7 +174,7 @@ name: Continuous Integration
 on:
   push:
     branches: [master]
-    tags: ['v*']
+    tags: ['v[0-9]*']
   pull_request:
 
 jobs:
@@ -202,15 +202,18 @@ jobs:
         with:
           name: build
           path: build/
+          if-no-files-found: error
 
   deploy:
     name: Deploy to S3
     needs: build_test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       id-token: write   # required for OIDC token issuance
       contents: read
+      actions: read     # required for download-artifact@v4 under restricted permissions
     concurrency:
       group: story-builder-deploy
       cancel-in-progress: false
@@ -226,11 +229,18 @@ jobs:
       - name: Validate tag matches kSBVersion and package.json
         run: |
           TAG_VERSION="${TAG#v}"
-          SB_VERSION=$(sed -nE 's/.*kSBVersion = "([^"]+)".*/\1/p' src/models/story_builder.ts)
+          SB_VERSION=$(sed -nE 's/.*kSBVersion = "([^"]+)".*/\1/p' src/models/story_builder.ts | head -1)
           PKG_VERSION=$(node -p "require('./package.json').version")
           echo "tag=$TAG_VERSION kSBVersion=$SB_VERSION package.json=$PKG_VERSION"
-          if [[ "$TAG_VERSION" != "$SB_VERSION" || "$TAG_VERSION" != "$PKG_VERSION" ]]; then
-            echo "::error::Version mismatch — refusing to deploy."
+          if [[ -z "$SB_VERSION" || -z "$PKG_VERSION" || "$TAG_VERSION" != "$SB_VERSION" || "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "::error::Version mismatch or empty value — refusing to deploy."
+            exit 1
+          fi
+
+      - name: Sanity-check build artifact
+        run: |
+          if [[ ! -s build/index.html ]]; then
+            echo "::error::build/index.html is missing or empty — refusing to sync (would wipe production)."
             exit 1
           fi
 
@@ -238,6 +248,12 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::612297603577:role/story-builder
           aws-region: us-east-1
+
+      # Write the immutable per-version archive FIRST so the canonical URLs
+      # are never updated without a corresponding archive existing.
+      - name: Archive to models-resources/version/<tag>/
+        run: |
+          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete
 
       - name: Sync to codap-resources (V3 read path)
         run: |
@@ -247,10 +263,6 @@ jobs:
         run: |
           aws s3 sync build/ s3://models-resources/story-builder/ --delete \
             --exclude "version/*"
-
-      - name: Archive to models-resources/version/<tag>/
-        run: |
-          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/
 
       - name: Invalidate CloudFront (codap-resources)
         run: |
