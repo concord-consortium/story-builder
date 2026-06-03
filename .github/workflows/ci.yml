@@ -1,0 +1,119 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [master]
+    tags: ['v[0-9]*']
+  pull_request:
+
+jobs:
+  build_test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Jest tests
+        run: CI=true npm test -- --watchAll=false
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+      - name: Build
+        run: npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build/
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to S3
+    needs: build_test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write   # required for OIDC token issuance
+      contents: read
+      actions: read     # required for download-artifact@v4 under restricted permissions
+    concurrency:
+      group: story-builder-deploy
+      cancel-in-progress: false
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: Validate tag matches kSBVersion and package.json
+        run: |
+          TAG_VERSION="${TAG#v}"
+          SB_VERSION=$(sed -nE 's/.*kSBVersion = "([^"]+)".*/\1/p' src/models/story_builder.ts | head -1)
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "tag=$TAG_VERSION kSBVersion=$SB_VERSION package.json=$PKG_VERSION"
+          if [[ -z "$SB_VERSION" || -z "$PKG_VERSION" || "$TAG_VERSION" != "$SB_VERSION" || "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "::error::Version mismatch or empty value — refusing to deploy."
+            exit 1
+          fi
+
+      - name: Sanity-check build artifact
+        run: |
+          if [[ ! -s build/index.html ]]; then
+            echo "::error::build/index.html is missing or empty — refusing to sync (would wipe production)."
+            exit 1
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::612297603577:role/story-builder
+          aws-region: us-east-1
+
+      # Write the immutable per-version archive FIRST so the canonical URLs
+      # are never updated without a corresponding archive existing. The archive
+      # is by definition immutable, so long-cache applies to everything in it.
+      - name: Archive to models-resources/version/<tag>/
+        run: |
+          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete \
+            --cache-control "public, max-age=31536000, immutable"
+
+      # Canonical syncs use a two-step pattern per target:
+      #   1. Upload hashed assets (build/static/) without --delete so old asset
+      #      versions linger to support any cached old HTML still referencing
+      #      them. Long cache + immutable is safe because filenames change with
+      #      content.
+      #   2. Upload HTML/manifests (everything outside build/static/) with
+      #      --delete and no-cache, so new HTML referencing new assets is
+      #      served immediately and old HTML doesn't linger.
+      # Orphan static assets accumulate slowly. Periodic pruning is future work.
+
+      - name: Sync hashed assets to codap-resources (V3 read path)
+        run: |
+          aws s3 sync build/static/ s3://codap-resources/plugins/story-builder/static/ \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Sync HTML/manifests to codap-resources (V3 read path)
+        run: |
+          aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete \
+            --exclude "static/*" \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Sync hashed assets to models-resources root (canonical)
+        run: |
+          aws s3 sync build/static/ s3://models-resources/story-builder/static/ \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Sync HTML/manifests to models-resources root (canonical)
+        run: |
+          aws s3 sync build/ s3://models-resources/story-builder/ --delete \
+            --exclude "static/*" --exclude "version/*" \
+            --cache-control "no-cache, no-store, must-revalidate"

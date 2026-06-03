@@ -173,7 +173,6 @@ export class StoryArea {
 
 	toggleIsAutoSave() {
 		this.isAutoSave = !this.isAutoSave;
-		let tSrcMoment = this.momentsManager.srcMoment
 	}
 
 	getSetIsAutoSave(iSetting?: boolean) {
