@@ -36,10 +36,11 @@ Out of scope:
 | CI scope | Build + Jest test on every push/PR; deploy job gated by tag |
 | Workflow file | Single `.github/workflows/ci.yml` (org convention) |
 | Sync mechanism | Plain `aws s3 sync --delete` (no `--size-only`) — correct in CI because build mtimes are always fresh |
-| CloudFront invalidation | Automatic, last step of deploy job |
+| CloudFront invalidation | Not used. Cache strategy below makes invalidation unnecessary. |
 | Concurrency | `concurrency: { group: story-builder-deploy, cancel-in-progress: false }` on the deploy job to serialize tag races |
 | AWS authentication | GitHub OIDC → IAM role assumption via `aws-actions/configure-aws-credentials@v4`. No long-lived secrets. Role: `arn:aws:iam::612297603577:role/story-builder`, set up via `concord-consortium/starter-projects/scripts/create-deploy-role.sh`. |
-| IAM policy | Shared managed policy `S3-deploy-by-role-tag` (covers `models-resources/story-builder/*` via RepoName tag) + supplemental inline policy for `codap-resources/plugins/story-builder/*` writes and `cloudfront:CreateInvalidation` on both distributions. |
+| IAM policy | Shared managed policy `S3-deploy-by-role-tag` (covers `models-resources/story-builder/*` via RepoName tag) + supplemental inline policy for `codap-resources/plugins/story-builder/*` writes. No CloudFront permission needed — see Cache strategy. |
+| Cache strategy | Per-file `Cache-Control` headers set at upload time. Hashed assets (`build/static/*`): `public, max-age=31536000, immutable`. HTML and root manifests: `no-cache, no-store, must-revalidate`. No `aws cloudfront create-invalidation` step — CloudFront honors origin `Cache-Control` (verified: both distributions use cache policy `S3-CORS-1` with MinTTL=1, so `no-cache` is respected). |
 | Generalization to other plugins | None for now — copy-paste when needed |
 
 ## Workflow architecture
@@ -159,37 +160,43 @@ steps:
   # Archive first so canonical URLs are never updated without a matching archive.
   - name: Archive to models-resources/version/<tag>/
     run: |
-      aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete
+      aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete \
+        --cache-control "public, max-age=31536000, immutable"
 
-  - name: Sync to codap-resources (v3 read path)
+  # Canonical syncs — two-step per target: hashed assets first (additive,
+  # long-cache), then HTML/manifests (with --delete, no-cache).
+
+  - name: Sync hashed assets to codap-resources
     run: |
-      aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete
+      aws s3 sync build/static/ s3://codap-resources/plugins/story-builder/static/ \
+        --cache-control "public, max-age=31536000, immutable"
+  - name: Sync HTML/manifests to codap-resources
+    run: |
+      aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete \
+        --exclude "static/*" \
+        --cache-control "no-cache, no-store, must-revalidate"
 
-  - name: Sync to models-resources root (canonical)
+  - name: Sync hashed assets to models-resources root
+    run: |
+      aws s3 sync build/static/ s3://models-resources/story-builder/static/ \
+        --cache-control "public, max-age=31536000, immutable"
+  - name: Sync HTML/manifests to models-resources root
     run: |
       aws s3 sync build/ s3://models-resources/story-builder/ --delete \
-        --exclude "version/*"
-
-  - name: Invalidate CloudFront (codap-resources)
-    run: |
-      aws cloudfront create-invalidation \
-        --distribution-id E1RS9TZVZBEEEC \
-        --paths "/plugins/story-builder/*"
-
-  - name: Invalidate CloudFront (models-resources)
-    run: |
-      aws cloudfront create-invalidation \
-        --distribution-id <MODELS_RESOURCES_DIST_ID> \
-        --paths "/story-builder/*"
+        --exclude "static/*" --exclude "version/*" \
+        --cache-control "no-cache, no-store, must-revalidate"
 ```
 
 Flag rationale:
 - **No `--size-only` anywhere.** In CI, build artifacts always have fresh mtimes (newer than any prior S3 LastModified), so plain `aws s3 sync` uploads everything that has changed by mtime — which, in CI, is effectively the whole build. Cost: a few MB of bandwidth per release. Benefit: avoids the documented bug where `--size-only` misses content changes that happen to preserve file size (e.g., `index.html` with a swapped hashed-asset reference).
-- **`--delete` on all three syncs** (including the version archive) so removed or renamed bundle files don't linger anywhere, even on a force-pushed tag re-deploy.
+- **`--delete` on the archive and on the HTML/manifest syncs.** The archive sync uses `--delete` so a force-pushed tag re-deploy doesn't leave orphan files in the version-pinned path. The HTML/manifest sync uses `--delete --exclude "static/*"` so removed root-level files (HTML, manifests) are purged without touching the hashed-asset subtree.
+- **Hashed-asset syncs intentionally omit `--delete`.** Old hashed assets linger to support cached old HTML that may still reference them. Filenames change with content, so accumulation is incremental and slow; periodic pruning is future work (see Known limitations).
 - **`--exclude "version/*"`** on the models-resources root sync so the version archive isn't wiped. (No `--exclude "branch/*"` — we don't deploy branches.)
+- **`--cache-control` per sync.** Hashed assets and immutable archives use `public, max-age=31536000, immutable`. HTML and root manifests use `no-cache, no-store, must-revalidate`. Both CloudFront distributions use cache policy `S3-CORS-1` (MinTTL=1, DefaultTTL=86400, MaxTTL=31536000), so origin `Cache-Control` is fully respected at the edge. Browser caches also respect these headers, eliminating the failure mode where a cached old HTML references a deleted hashed asset.
+- **No `aws cloudfront create-invalidation`.** Because origin `Cache-Control` is respected, new HTML is served immediately (no-cache) and new hashed assets are referenced by new HTML (immutable + content-addressed). Invalidations are redundant and only affect CloudFront — they would NOT clear browser caches, which the cache-control headers do address.
 - **No `--acl public-read`.** Both buckets have bucket policies that grant `s3:GetObject` to `Principal: *` on all objects, so per-object ACLs are redundant. Dropping the flag also makes the workflow robust against future moves to `BucketOwnerEnforced` ownership (AWS's recommended default for new buckets, which disables per-object ACLs and would cause `--acl public-read` to fail at PUT time).
 
-Step order: **write the version archive first**, then sync codap-resources, then sync models-resources root, then invalidate codap-resources CloudFront, then invalidate models-resources CloudFront. Archive-first means the canonical URLs are never updated without a corresponding archive existing — a partial failure between archive and canonical leaves the version archive present but the canonical still serving the previous release, which is a recoverable state. CloudFront invalidations run last so a partial failure earlier in the deploy leaves the old (cached) build serving until the run is recovered.
+Step order: **write the version archive first**, then per canonical target sync hashed assets (additive, long-cache) then HTML/manifests (`--delete`, no-cache). Archive-first means the canonical URLs are never updated without a corresponding archive existing — a partial failure between archive and canonical leaves the version archive present but the canonical still serving the previous release, which is a recoverable state. Within each canonical target, hashed-assets-first means new asset filenames exist before new HTML references them, eliminating any window where new HTML would point at not-yet-uploaded assets.
 
 ### Defensive flags
 
@@ -204,7 +211,7 @@ Step order: **write the version archive first**, then sync codap-resources, then
 
 - **No concurrency group on `build_test`.** Two tags pushed close together create two independent `build_test` runs in parallel; whichever finishes first enters the `deploy` queue first. In the pathological case where `build_test` ordering inverts the push order, the older tag's deploy runs second and overwrites the newer tag's canonical content. Mitigation: don't push tags faster than `build_test` completes (~2 minutes). Adding concurrency to `build_test` would also serialize PR builds against tag deploys, hurting iteration; the trade-off doesn't favor protecting against a corner case that's unlikely under normal release cadence.
 - **Trigger duplication on tagged releases.** Pushing a commit to master AND pushing a release tag at that commit fires two parallel `build_test` runs (one for `push:master`, one for `push:tags`). CI cost only; no correctness impact.
-- **CloudFront `/story-builder/*` invalidation pattern is wider than strictly needed.** It also invalidates the immutable per-version archive paths. Within CloudFront's free 1000-paths-per-month quota; tightening to a list of specific paths (`/story-builder/index.html`, `/story-builder/static/*`, etc.) is brittle as the build output evolves.
+- **Orphaned hashed assets in `static/`.** Canonical hashed-asset syncs intentionally omit `--delete` so cached old HTML can still reference old assets without 404ing. Over many releases this accumulates orphans in `s3://codap-resources/plugins/story-builder/static/` and `s3://models-resources/story-builder/static/`. The accumulation is slow (~tens of KB per release for unchanged libraries, more for libraries that change), and S3 storage is cheap. A periodic prune job (e.g., delete files older than N days) is future work.
 
 ## Error handling
 
@@ -221,18 +228,9 @@ The validation step runs before any AWS call, so a mismatch fails loud with zero
 
 ### Partial-deploy failures
 
-The three S3 sync steps run sequentially. If a later step fails, earlier writes have already happened, but CloudFront invalidation is the *last* step — so users keep seeing the cached old build until the run is recovered. Not a broken state, just an incomplete one.
+The S3 sync steps run sequentially: archive → codap-resources static → codap-resources HTML → models-resources static → models-resources HTML. If a later step fails, earlier writes have already happened. The archive-first ordering ensures the immutable version snapshot exists before any canonical URL is updated. Within each canonical target, hashed-asset-first ordering ensures new asset filenames exist before new HTML references them. A partial failure between targets leaves one canonical URL serving the new release and the other still serving the previous release — a recoverable state, not a broken one.
 
-Recovery: re-run the failed job from the Actions UI. The artifact from `build_test` is preserved, so the re-run uses byte-identical bits. All sync and invalidation operations are idempotent. No new commit, no new tag.
-
-### CloudFront invalidation failures
-
-If S3 writes succeed but invalidation fails, users keep seeing the old build until invalidation succeeds. Two recovery paths:
-
-1. Re-run the invalidation step from the Actions UI.
-2. Invalidate manually via the `/codap-resources` skill or `aws cloudfront create-invalidation` directly.
-
-Invalidation is idempotent — running it twice is fine, just costs a second request.
+Recovery: re-run the failed job from the Actions UI. The artifact from `build_test` is preserved, so the re-run uses byte-identical bits. All sync operations are idempotent — re-uploading the same content with the same `Cache-Control` is a no-op. No new commit, no new tag.
 
 ### Tag-race protection
 
@@ -265,15 +263,15 @@ After the introducing PR merges, master is in a known mismatched state: `kSBVers
 Open a small follow-up PR that aligns both versions to `0.87` (also includes the CODAP-1362 fix already on master from PR #2). Merge. Tag `v0.87` at the new HEAD. The full deploy job runs:
 
 - Validation passes (`tag → 0.87`, `kSBVersion → 0.87`, `package.json → 0.87` all match).
-- All three S3 syncs and both CloudFront invalidations execute against production.
-- Verify by `aws s3 ls` against each prefix, by checking the two CloudFront distributions' recent invalidations, and by loading the new build in a CODAP V3 instance and confirming the CODAP-1362 fix is live.
+- All five S3 syncs execute against production (archive + two canonicals × two sync steps each).
+- Verify by `aws s3 ls` against each prefix, by checking `Cache-Control` headers on a sample of objects (`aws s3api head-object`), and by loading the new build in a CODAP V3 instance and confirming the CODAP-1362 fix is live.
 
 Stage 2 is also the real first ship of the bugfix, so commissioning and shipping are one act. If anything in Stage 2 fails (AWS creds, IAM, CloudFront perms), the fix is to address that underlying issue and re-run the workflow from the Actions UI.
 
 ### Not tested in this design
 
 - Workflow YAML syntax beyond what GitHub validates on push (`actionlint` is overkill for ~80 lines of workflow).
-- CloudFront propagation latency (operational expectation; ~1 minute after invalidation).
+- CloudFront edge propagation (operational expectation; new `Cache-Control: no-cache` HTML reaches all edges within ~seconds, much faster than a manual invalidation would have).
 - Cross-version regressions on the V2 side (manual functional check during commissioning).
 
 ## Prerequisites
@@ -285,7 +283,6 @@ Stage 2 is also the real first ship of the bugfix, so commissioning and shipping
    - **b.** Attach a supplemental inline policy to the same role covering the things the shared policy doesn't:
      - `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::codap-resources/plugins/story-builder/*`
      - `s3:ListBucket` on `arn:aws:s3:::codap-resources` with condition `s3:prefix` like `plugins/story-builder/*` (needed for `aws s3 sync` to list the prefix)
-     - `cloudfront:CreateInvalidation` on distribution `E1RS9TZVZBEEEC` (codap-resources) and `E1QHTGVGYD1DWZ` (models-resources)
    - **c.** Verify by inspecting the new role: `aws iam get-role --role-name story-builder` and `aws iam list-attached-role-policies --role-name story-builder`.
 
    No GitHub repo secrets are required — the workflow uses `aws-actions/configure-aws-credentials@v4` with `role-to-assume` and the OIDC `id-token` permission. `build_test` runs without any AWS involvement.

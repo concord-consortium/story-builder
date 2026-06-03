@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a GitHub Actions workflow to `concord-consortium/story-builder` that builds + tests on every push/PR and deploys to two S3 buckets + invalidates CloudFront on `v[0-9]*` tag push. First live ship is the CODAP-1362 fix.
+**Goal:** Add a GitHub Actions workflow to `concord-consortium/story-builder` that builds + tests on every push/PR and deploys to two S3 buckets on `v[0-9]*` tag push, with per-file `Cache-Control` headers (no-cache for HTML, long-cache + immutable for hashed assets) instead of CloudFront invalidation. First live ship is the CODAP-1362 fix.
 
-**Architecture:** Single workflow file (`.github/workflows/ci.yml`) with two jobs. `build_test` (always) runs `npm ci` + Jest + `npm run build` and uploads `build/` as an artifact. `deploy` (tag-only, `needs: build_test`) downloads the artifact, validates that tag + `kSBVersion` + `package.json` version all agree, then `aws s3 sync`s to `codap-resources/plugins/story-builder/`, `models-resources/story-builder/`, and `models-resources/story-builder/version/<tag>/`, and finally creates CloudFront invalidations on both distributions. Concurrency group on `deploy` serializes tag races.
+**Architecture:** Single workflow file (`.github/workflows/ci.yml`) with two jobs. `build_test` (always) runs `npm ci` + Jest + `npm run build` and uploads `build/` as an artifact. `deploy` (tag-only, `needs: build_test`) downloads the artifact, validates that tag + `kSBVersion` + `package.json` version all agree, then `aws s3 sync`s to `models-resources/story-builder/version/<tag>/` (archive), `codap-resources/plugins/story-builder/`, and `models-resources/story-builder/` — each canonical target in two passes (hashed assets long-cached + immutable, then HTML/manifests no-cached). Concurrency group on `deploy` serializes tag races.
 
-**Tech Stack:** GitHub Actions, AWS CLI v2 (`aws s3 sync`, `aws cloudfront create-invalidation`), Node 18 (with `--openssl-legacy-provider` for react-scripts 4 / webpack 4 compatibility), Jest via `react-scripts test`.
+**Tech Stack:** GitHub Actions, AWS CLI v2 (`aws s3 sync`), Node 18 (with `--openssl-legacy-provider` for react-scripts 4 / webpack 4 compatibility), Jest via `react-scripts test`.
 
 **Reference:** [Design spec](../specs/2026-05-26-story-builder-build-and-deploy-design.md). **Jira:** [CODAP-1366](https://concord-consortium.atlassian.net/browse/CODAP-1366). Working branch: `CODAP-1366-build-deploy`.
 
@@ -66,7 +66,7 @@ That script creates IAM role `story-builder`, tags it `RepoName=story-builder`, 
 
 - [ ] **Step 4: Attach the supplemental inline policy**
 
-The shared policy doesn't cover `codap-resources` writes or `cloudfront:CreateInvalidation`. Attach this supplemental inline policy to the `story-builder` role (save as `story-builder-supplemental-policy.json`):
+The shared policy doesn't cover `codap-resources` writes. Attach this supplemental inline policy to the `story-builder` role (save as `story-builder-supplemental-policy.json`):
 
 ```json
 {
@@ -86,19 +86,12 @@ The shared policy doesn't cover `codap-resources` writes or `cloudfront:CreateIn
       "Condition": {
         "StringLike": { "s3:prefix": "plugins/story-builder/*" }
       }
-    },
-    {
-      "Sid": "InvalidateCloudFront",
-      "Effect": "Allow",
-      "Action": "cloudfront:CreateInvalidation",
-      "Resource": [
-        "arn:aws:cloudfront::612297603577:distribution/E1RS9TZVZBEEEC",
-        "arn:aws:cloudfront::612297603577:distribution/E1QHTGVGYD1DWZ"
-      ]
     }
   ]
 }
 ```
+
+(No `cloudfront:CreateInvalidation` — the workflow uses per-file `Cache-Control` headers so invalidation is unnecessary. See spec §Cache strategy.)
 
 Apply:
 
@@ -253,28 +246,32 @@ jobs:
       # are never updated without a corresponding archive existing.
       - name: Archive to models-resources/version/<tag>/
         run: |
-          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete
+          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ --delete \
+            --cache-control "public, max-age=31536000, immutable"
 
-      - name: Sync to codap-resources (V3 read path)
+      # Canonical syncs: hashed assets first (additive, long-cache), then
+      # HTML/manifests (--delete, no-cache). See spec §Cache strategy.
+      - name: Sync hashed assets to codap-resources (V3 read path)
         run: |
-          aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete
+          aws s3 sync build/static/ s3://codap-resources/plugins/story-builder/static/ \
+            --cache-control "public, max-age=31536000, immutable"
 
-      - name: Sync to models-resources root (canonical)
+      - name: Sync HTML/manifests to codap-resources (V3 read path)
+        run: |
+          aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete \
+            --exclude "static/*" \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Sync hashed assets to models-resources root (canonical)
+        run: |
+          aws s3 sync build/static/ s3://models-resources/story-builder/static/ \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Sync HTML/manifests to models-resources root (canonical)
         run: |
           aws s3 sync build/ s3://models-resources/story-builder/ --delete \
-            --exclude "version/*"
-
-      - name: Invalidate CloudFront (codap-resources)
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id E1RS9TZVZBEEEC \
-            --paths "/plugins/story-builder/*"
-
-      - name: Invalidate CloudFront (models-resources)
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id E1QHTGVGYD1DWZ \
-            --paths "/story-builder/*"
+            --exclude "static/*" --exclude "version/*" \
+            --cache-control "no-cache, no-store, must-revalidate"
 ```
 
 - [ ] **Step 4: Sanity-check the YAML parses**
@@ -318,7 +315,7 @@ Build & test on every push to master and every PR. Deploy job
 kSBVersion + package.json version + tag all agree, then syncs to
 codap-resources/plugins/story-builder/ and to models-resources/
 story-builder/ (root + version/<tag>/ archive), and creates
-CloudFront invalidations on both distributions.
+per-file Cache-Control headers (no-cache for HTML, long-cache + immutable for hashed assets).
 
 See docs/superpowers/specs/2026-05-26-story-builder-build-and-deploy-design.md
 for the full design rationale.
@@ -358,7 +355,7 @@ gh pr create \
   --title "CODAP-1366: standalone build & deploy workflow" \
   --body "$(cat <<'EOF'
 ## Summary
-- Adds `.github/workflows/ci.yml`: build + Jest test on every push/PR; deploys to S3 + CloudFront on `v[0-9]*` tag push.
+- Adds `.github/workflows/ci.yml`: build + Jest test on every push/PR; deploys to S3 (with per-file Cache-Control headers — no CloudFront invalidation needed) on `v[0-9]*` tag push.
 - Adds the design spec at `docs/superpowers/specs/2026-05-26-story-builder-build-and-deploy-design.md` covering rationale, decisions, and commissioning plan.
 - Dual-bucket publish during the V2→V3 transition: `codap-resources/plugins/story-builder/` (current V3 read path) and `models-resources/story-builder/` (org standard + per-tag archive).
 
@@ -449,7 +446,7 @@ gh run watch  # picks up the most recent run; or pass the run ID
 Expected:
 - `Build & Test` job succeeds (the source compiles and the test passes; nothing is wrong with the code at this commit).
 - `Deploy to S3` job runs the validation step, prints `tag=0.86 kSBVersion=0.86 package.json=0.1.0`, then the `::error::Version mismatch — refusing to deploy.` annotation, and exits non-zero.
-- **No subsequent S3 sync or CloudFront step runs** (because validation failed).
+- **No subsequent S3 sync step runs** (because validation failed).
 
 - [ ] **Step 5: Verify nothing was written to S3**
 
@@ -573,7 +570,7 @@ gh pr create \
 
 ## Test plan
 - [ ] CI build + test passes on this PR.
-- [ ] After merge, tag `v0.87` at the new HEAD. Confirm the deploy job validates successfully, syncs to both buckets + the `version/v0.87/` archive, and creates both CloudFront invalidations.
+- [ ] After merge, tag `v0.87` at the new HEAD. Confirm the deploy job validates successfully and syncs to both buckets + the `version/v0.87/` archive with the correct Cache-Control headers.
 - [ ] Confirm CODAP V3 picks up the new build (CODAP-1362 fix verifiable: adding Story Builder to a v3 doc, then a graph, dirties the moment).
 
 Refs CODAP-1366.
@@ -597,7 +594,7 @@ After merging, continue to Task 6 to push the tag.
 
 ## Task 6: Stage 2 commissioning — live deploy of `v0.87`
 
-**Purpose:** Push the `v0.87` tag, watch the full deploy run, verify the artifacts land in S3 and CloudFront is invalidated.
+**Purpose:** Push the `v0.87` tag, watch the full deploy run, verify the artifacts land in S3 with the right `Cache-Control` headers and that CODAP V3 sees the fix.
 
 **Files:** none.
 
@@ -643,10 +640,10 @@ Expected sequence (~3–5 minutes total):
 2. `Deploy to S3` job validation step: prints `tag=0.87 kSBVersion=0.87 package.json=0.87`, no error.
 3. `Sanity-check build artifact` step: passes (build/index.html present and non-empty).
 4. `Archive to models-resources/version/<tag>/` step: completes (archive lands first so canonical URLs are never updated without a matching archive).
-5. `Sync to codap-resources` step: completes, lists uploaded files.
-6. `Sync to models-resources root` step: completes.
-7. `Invalidate CloudFront (codap-resources)` step: completes; prints an invalidation ID.
-8. `Invalidate CloudFront (models-resources)` step: completes; prints an invalidation ID.
+5. `Sync hashed assets to codap-resources` step: completes.
+6. `Sync HTML/manifests to codap-resources` step: completes.
+7. `Sync hashed assets to models-resources root` step: completes.
+8. `Sync HTML/manifests to models-resources root` step: completes.
 
 If any step fails, the spec's Error Handling section applies — re-run the failed job from the Actions UI (`gh run rerun <run-id> --failed`).
 
@@ -660,14 +657,22 @@ aws s3 ls s3://models-resources/story-builder/version/v0.87/ --recursive | head 
 
 Expected: all three list builds with recent LastModified timestamps (within the last few minutes). The contents should match `build/` from a local `npm run build` — at a minimum, `index.html`, `asset-manifest.json`, `static/js/main.*.js`, `static/css/main.*.css`.
 
-- [ ] **Step 6: Verify both CloudFront invalidations completed**
+- [ ] **Step 6: Verify `Cache-Control` headers are correct on a sample of objects**
 
 ```bash
-aws cloudfront list-invalidations --distribution-id E1RS9TZVZBEEEC --max-items 3
-aws cloudfront list-invalidations --distribution-id E1QHTGVGYD1DWZ --max-items 3
+# HTML — should be no-cache
+aws s3api head-object --bucket codap-resources --key plugins/story-builder/index.html \
+  --query CacheControl --output text
+aws s3api head-object --bucket models-resources --key story-builder/index.html \
+  --query CacheControl --output text
+
+# Hashed asset — should be long-cache + immutable
+aws s3api head-object --bucket codap-resources \
+  --key "$(aws s3 ls s3://codap-resources/plugins/story-builder/static/js/ | awk '/main\..*\.js/ {print "plugins/story-builder/static/js/"$NF; exit}')" \
+  --query CacheControl --output text
 ```
 
-Expected: the most recent invalidation on each distribution has `Status: Completed` (or `InProgress` if you check within a minute). Note the IDs — they'll typically match what step 4 printed.
+Expected: HTML returns `no-cache, no-store, must-revalidate`. Hashed-asset returns `public, max-age=31536000, immutable`. Anything else means the sync's `--cache-control` flag didn't take.
 
 - [ ] **Step 7: Smoke-test in CODAP V3 (functional verification)**
 
@@ -676,11 +681,11 @@ Open a CODAP V3 instance (typically `https://codap3.concord.org/` or your local 
 1. Story Builder loads (no 404, no script errors in the console — the plugin URL resolves to the freshly synced `codap-resources/plugins/story-builder/` content).
 2. The CODAP-1362 fix is present: with Story Builder added, add a graph; the first moment turns yellow (dirty). This is the user-visible bug fix this whole release is shipping.
 
-If Story Builder loads but the CODAP-1362 fix isn't present, the most likely cause is CloudFront serving stale cached HTML. Wait 1–2 minutes for invalidation to propagate, then hard-refresh. If it persists, manually invalidate again via `aws cloudfront create-invalidation --distribution-id E1RS9TZVZBEEEC --paths "/plugins/story-builder/*"`.
+If Story Builder loads but the CODAP-1362 fix isn't present, the most likely cause is a stale browser cache from a previous session (the workflow's `no-cache` header is for the new HTML; the user's browser may still have the previous response cached briefly). Hard-refresh (Cmd-Shift-R / Ctrl-Shift-R). If it still persists, verify the new HTML actually shipped to S3 (`aws s3api head-object`) and check its `LastModified` matches the deploy time.
 
 - [ ] **Step 8: Record Stage 2 result**
 
-Note in the CODAP-1366 Jira issue: "Stage 2 commissioning complete. `v0.87` tag pushed; full deploy succeeded; CODAP-1362 fix verified live in V3." Link to the successful workflow run URL and the relevant CloudFront invalidation IDs.
+Note in the CODAP-1366 Jira issue: "Stage 2 commissioning complete. `v0.87` tag pushed; full deploy succeeded; CODAP-1362 fix verified live in V3." Link to the successful workflow run URL.
 
 Also update CODAP-1362's Jira issue to "Deployed" (or your team's equivalent status) and note that the fix is live as of `v0.87`.
 
