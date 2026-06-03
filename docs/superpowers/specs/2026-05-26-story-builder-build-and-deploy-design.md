@@ -31,7 +31,7 @@ Out of scope:
 | Deploy targets | Both `s3://models-resources/story-builder/` and `s3://codap-resources/plugins/story-builder/` |
 | `models-resources` layout | Tag → root + `version/<tag>/` archive |
 | `codap-resources` layout | Tag → root only (overwrite in place) |
-| Trigger | GitHub Actions on tag push matching `v*` |
+| Trigger | GitHub Actions on tag push matching `v[0-9]*` (tighter than `v*` so stray non-version tags like `vibe-check` don't fire deploy) |
 | Versioning | Developer bumps `kSBVersion` *and* `package.json` `version` in a PR; tag matches; workflow validates all three agree |
 | CI scope | Build + Jest test on every push/PR; deploy job gated by tag |
 | Workflow file | Single `.github/workflows/ci.yml` (org convention) |
@@ -77,7 +77,7 @@ The repo's PR convention drives the version-bump cadence:
 2. Review and merge to `master`.
 3. Tag the merge commit: `git tag v0.87 && git push --tags`.
 
-Tag format is `v<semver>` (e.g., `v0.87`), matching the workflow's `'v*'` tag filter and the `v` prefix convention common in the org.
+Tag format is `v<semver>` (e.g., `v0.87`), matching the workflow's `'v[0-9]*'` tag filter and the `v` prefix convention common in the org.
 
 The workflow validates and never writes back to the repo. Forgetting to bump shows up as a failed CI run — recoverable by a small follow-up PR, then a fresh tag.
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a GitHub Actions workflow to `concord-consortium/story-builder` that builds + tests on every push/PR and deploys to two S3 buckets + invalidates CloudFront on `v*` tag push. First live ship is the CODAP-1362 fix.
+**Goal:** Add a GitHub Actions workflow to `concord-consortium/story-builder` that builds + tests on every push/PR and deploys to two S3 buckets + invalidates CloudFront on `v[0-9]*` tag push. First live ship is the CODAP-1362 fix.
 
 **Architecture:** Single workflow file (`.github/workflows/ci.yml`) with two jobs. `build_test` (always) runs `npm ci` + Jest + `npm run build` and uploads `build/` as an artifact. `deploy` (tag-only, `needs: build_test`) downloads the artifact, validates that tag + `kSBVersion` + `package.json` version all agree, then `aws s3 sync`s to `codap-resources/plugins/story-builder/`, `models-resources/story-builder/`, and `models-resources/story-builder/version/<tag>/`, and finally creates CloudFront invalidations on both distributions. Concurrency group on `deploy` serializes tag races.
 
@@ -314,7 +314,7 @@ git commit -m "$(cat <<'EOF'
 CODAP-1366: add ci.yml for build + S3 deploy on tag
 
 Build & test on every push to master and every PR. Deploy job
-(tag-only, v*) downloads the build_test artifact, validates that
+(tag-only, v[0-9]*) downloads the build_test artifact, validates that
 kSBVersion + package.json version + tag all agree, then syncs to
 codap-resources/plugins/story-builder/ and to models-resources/
 story-builder/ (root + version/<tag>/ archive), and creates
@@ -358,7 +358,7 @@ gh pr create \
   --title "CODAP-1366: standalone build & deploy workflow" \
   --body "$(cat <<'EOF'
 ## Summary
-- Adds `.github/workflows/ci.yml`: build + Jest test on every push/PR; deploys to S3 + CloudFront on `v*` tag push.
+- Adds `.github/workflows/ci.yml`: build + Jest test on every push/PR; deploys to S3 + CloudFront on `v[0-9]*` tag push.
 - Adds the design spec at `docs/superpowers/specs/2026-05-26-story-builder-build-and-deploy-design.md` covering rationale, decisions, and commissioning plan.
 - Dual-bucket publish during the V2→V3 transition: `codap-resources/plugins/story-builder/` (current V3 read path) and `models-resources/story-builder/` (org standard + per-tag archive).
 
@@ -641,11 +641,12 @@ gh run watch
 Expected sequence (~3–5 minutes total):
 1. `Build & Test` job: succeeds (artifact uploaded).
 2. `Deploy to S3` job validation step: prints `tag=0.87 kSBVersion=0.87 package.json=0.87`, no error.
-3. `Sync to codap-resources` step: completes, lists uploaded files.
-4. `Sync to models-resources root` step: completes.
-5. `Archive to models-resources/version/<tag>/` step: completes.
-6. `Invalidate CloudFront (codap-resources)` step: completes; prints an invalidation ID.
-7. `Invalidate CloudFront (models-resources)` step: completes; prints an invalidation ID.
+3. `Sanity-check build artifact` step: passes (build/index.html present and non-empty).
+4. `Archive to models-resources/version/<tag>/` step: completes (archive lands first so canonical URLs are never updated without a matching archive).
+5. `Sync to codap-resources` step: completes, lists uploaded files.
+6. `Sync to models-resources root` step: completes.
+7. `Invalidate CloudFront (codap-resources)` step: completes; prints an invalidation ID.
+8. `Invalidate CloudFront (models-resources)` step: completes; prints an invalidation ID.
 
 If any step fails, the spec's Error Handling section applies — re-run the failed job from the Actions UI (`gh run rerun <run-id> --failed`).
 
