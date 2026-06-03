@@ -17,72 +17,113 @@
 | Action | File | Responsibility |
 |---|---|---|
 | Create | `.github/workflows/ci.yml` | Two-job CI/CD workflow (build_test + deploy) |
+| Modify (this branch, opportunistic) | `src/models/story_area.ts` | Drop unused `tSrcMoment` local in `toggleIsAutoSave` (CI=true surfaces this as a build-blocking ESLint warning) |
 | Modify (Stage 2 PR, separate from this branch) | `src/models/story_builder.ts` | Bump `kSBVersion` from `'0.86'` to `'0.87'` |
 | Modify (Stage 2 PR) | `package.json` | Bump `"version"` from `"0.1.0"` to `"0.87"` |
 
-The workflow file is the only code artifact on the `CODAP-1366-build-deploy` branch. The version bumps live on a separate Stage 2 PR (`CODAP-1366-release-0.87` branch, created in Task 5) so that Stage 1 commissioning (Task 4) can verify the validation step catches the natural mismatched state on master.
+The workflow file is the main code artifact on the `CODAP-1366-build-deploy` branch. The `story_area.ts` cleanup is opportunistic — `react-scripts build` under `CI=true` promotes ESLint warnings to errors, and the dead-code line `let tSrcMoment = this.momentsManager.srcMoment` in `toggleIsAutoSave` was a latent issue that blocked the first CI run on this branch. Removing it is unambiguously correct (the local was never read).
 
-No source-code changes outside these three files.
+The version bumps live on a separate Stage 2 PR (`CODAP-1366-release-0.87` branch, created in Task 5) so that Stage 1 commissioning (Task 4) can verify the validation step catches the natural mismatched state on master.
 
 ---
 
 ## Task 1: Verify AWS prerequisites
 
-**Purpose:** Confirm the workflow can authenticate and act before we hard-code IDs into the YAML.
+**Purpose:** Confirm the workflow can authenticate and act before we hard-code IDs into the YAML. Auth uses **GitHub OIDC** (no long-lived secrets, per org convention) — see [concord-consortium/starter-projects/doc/deploy-setup.md](https://github.com/concord-consortium/starter-projects/blob/master/doc/deploy-setup.md).
 
 **Files:** none (this task only gathers values; nothing is committed).
 
-- [ ] **Step 1: Confirm `concord-consortium/story-builder` has org-level AWS secrets inherited**
+- [ ] **Step 1: Confirm bucket public-read access via bucket policy**
 
-Visit `https://github.com/concord-consortium/story-builder/settings/secrets/actions` in the browser. Expected: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` appear in the "Organization secrets" section (inherited, not repository-overridden). If they don't, ask repo admin / org admin to grant the story-builder repo access to the existing org secrets.
-
-- [ ] **Step 2: Confirm IAM permissions for those creds**
-
-Run from a shell where the same AWS creds are configured (or have an AWS admin run):
+Both `codap-resources` and `models-resources` grant public read via a **bucket policy** (`s3:GetObject` for `Principal: *`), not per-object ACLs. The workflow therefore does **not** pass `--acl public-read` on its sync commands. Verify:
 
 ```bash
-aws sts get-caller-identity   # confirm which IAM principal you're testing
-aws iam simulate-principal-policy \
-  --policy-source-arn <PRINCIPAL_ARN> \
-  --action-names s3:PutObject s3:DeleteObject s3:ListBucket \
-  --resource-arns \
-      arn:aws:s3:::codap-resources/plugins/story-builder/* \
-      arn:aws:s3:::models-resources/story-builder/*
-aws iam simulate-principal-policy \
-  --policy-source-arn <PRINCIPAL_ARN> \
-  --action-names cloudfront:CreateInvalidation \
-  --resource-arns \
-      arn:aws:cloudfront::*:distribution/E1RS9TZVZBEEEC
+aws s3api get-bucket-policy --bucket codap-resources --query Policy --output text | jq .
+aws s3api get-bucket-policy --bucket models-resources --query Policy --output text | jq .
 ```
 
-Expected: every action returns `EvalDecision: allowed`. If any return `implicitDeny` or `explicitDeny`, request an IAM policy update before continuing.
+Expected: both responses include a statement allowing `s3:GetObject` from `Principal: "*"` on `arn:aws:s3:::<bucket>/*`. If a policy is missing or differs, surface that with the AWS admin before continuing — switching to ACL-based access requires changes to both the workflow YAML and the bucket ownership controls.
 
-- [ ] **Step 3: Confirm bucket ACL configuration permits `--acl public-read`**
-
-```bash
-aws s3api get-bucket-ownership-controls --bucket codap-resources \
-  --query 'OwnershipControls.Rules[0].ObjectOwnership' --output text
-aws s3api get-bucket-ownership-controls --bucket models-resources \
-  --query 'OwnershipControls.Rules[0].ObjectOwnership' --output text
-```
-
-Expected: either `BucketOwnerPreferred` or `ObjectWriter`. If either returns `BucketOwnerEnforced`, ACLs are disabled and the spec's contingency applies — revisit the design before writing the workflow (either re-enable ACLs on that bucket or drop `--acl public-read` from the workflow and rely on bucket-policy-based public access).
-
-- [ ] **Step 4: Look up the CloudFront distribution ID for `models-resources`**
+- [ ] **Step 2: Look up the CloudFront distribution ID for `models-resources`**
 
 ```bash
 aws cloudfront list-distributions \
   --query 'DistributionList.Items[?contains(Aliases.Items[0], `models-resources`) || contains(Origins.Items[0].DomainName, `models-resources.s3`)].{Id:Id,Aliases:Aliases.Items,Origin:Origins.Items[0].DomainName}' \
-  --output table
+  --output text
 ```
 
-Expected: a single row with the distribution ID. Record the ID — you'll paste it into the workflow file in Task 2 Step 3. If you find more than one matching distribution, pick the one whose alias is `models-resources.concord.org` (or ask whoever maintains the org's AWS infra).
+Expected: at least one matching distribution. Pick the one whose alias is `models-resources.concord.org` (resolved during initial AWS exploration: `E1QHTGVGYD1DWZ`). The codap-resources distribution is `E1RS9TZVZBEEEC` (already known and hard-coded in the workflow).
 
-- [ ] **Step 5: Record findings**
+- [ ] **Step 3: Set up the OIDC IAM role**
 
-Write the discovered `<MODELS_RESOURCES_DIST_ID>` value and the IAM principal name in a scratch note (e.g., on the CODAP-1366 Jira issue). You'll reference the distribution ID in Task 2. The IAM principal is for documentation / future debugging only.
+Coordinate with an AWS admin (someone with IAM admin in account `612297603577`). From a checkout of `concord-consortium/starter-projects`:
 
-If any of Steps 1–3 fails, **stop** and resolve the underlying issue before proceeding to Task 2. Don't write the workflow against an environment that can't run it.
+```bash
+./scripts/create-deploy-role.sh story-builder
+```
+
+That script creates IAM role `story-builder`, tags it `RepoName=story-builder`, sets a trust policy scoped to `repo:concord-consortium/story-builder:*` (only this repo's workflows can assume it), and attaches the shared `S3-deploy-by-role-tag` managed policy. The shared policy grants S3 access to `models-resources/${aws:PrincipalTag/RepoName}/*` — i.e., `models-resources/story-builder/*` for our role.
+
+- [ ] **Step 4: Attach the supplemental inline policy**
+
+The shared policy doesn't cover `codap-resources` writes or `cloudfront:CreateInvalidation`. Attach this supplemental inline policy to the `story-builder` role (save as `story-builder-supplemental-policy.json`):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteCodapResourcesStoryBuilder",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::codap-resources/plugins/story-builder/*"
+    },
+    {
+      "Sid": "ListCodapResourcesForSync",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::codap-resources",
+      "Condition": {
+        "StringLike": { "s3:prefix": "plugins/story-builder/*" }
+      }
+    },
+    {
+      "Sid": "InvalidateCloudFront",
+      "Effect": "Allow",
+      "Action": "cloudfront:CreateInvalidation",
+      "Resource": [
+        "arn:aws:cloudfront::612297603577:distribution/E1RS9TZVZBEEEC",
+        "arn:aws:cloudfront::612297603577:distribution/E1QHTGVGYD1DWZ"
+      ]
+    }
+  ]
+}
+```
+
+Apply:
+
+```bash
+aws iam put-role-policy \
+  --role-name story-builder \
+  --policy-name story-builder-supplemental \
+  --policy-document file://story-builder-supplemental-policy.json
+```
+
+- [ ] **Step 5: Verify the role exists and has both policies**
+
+```bash
+aws iam get-role --role-name story-builder
+aws iam list-attached-role-policies --role-name story-builder
+aws iam list-role-policies --role-name story-builder
+```
+
+Expected: role exists with `RepoName=story-builder` tag; `S3-deploy-by-role-tag` appears in attached policies; `story-builder-supplemental` appears in inline policies.
+
+- [ ] **Step 6: Record findings**
+
+Note the resolved values on the CODAP-1366 Jira issue: role ARN `arn:aws:iam::612297603577:role/story-builder`, models-resources distribution `E1QHTGVGYD1DWZ`, codap-resources distribution `E1RS9TZVZBEEEC`.
+
+If any of Steps 3–5 fails, **stop** and resolve the underlying issue (IAM permissions, role conflict, policy syntax) before proceeding. The workflow can still be merged before this is done — `build_test` runs without any AWS involvement — but the `deploy` job will fail on its first tag push until the role is in place.
 
 ---
 
@@ -125,7 +166,7 @@ Expected: empty directory (the repo has no existing workflows — confirmed duri
 
 - [ ] **Step 3: Write `.github/workflows/ci.yml`**
 
-Substitute the `<MODELS_RESOURCES_DIST_ID>` placeholder near the bottom with the real distribution ID you recorded in Task 1 Step 4. Everything else is literal.
+The deploy job uses **GitHub OIDC** to assume the `story-builder` IAM role created in Task 1 — no `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` secrets are needed, and `--acl public-read` is omitted on syncs because bucket policies handle public access.
 
 ```yaml
 name: Continuous Integration
@@ -167,13 +208,13 @@ jobs:
     needs: build_test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # required for OIDC token issuance
+      contents: read
     concurrency:
       group: story-builder-deploy
       cancel-in-progress: false
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: us-east-1
       TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
@@ -193,21 +234,23 @@ jobs:
             exit 1
           fi
 
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::612297603577:role/story-builder
+          aws-region: us-east-1
+
       - name: Sync to codap-resources (V3 read path)
         run: |
-          aws s3 sync build/ s3://codap-resources/plugins/story-builder/ \
-            --acl public-read --delete
+          aws s3 sync build/ s3://codap-resources/plugins/story-builder/ --delete
 
       - name: Sync to models-resources root (canonical)
         run: |
-          aws s3 sync build/ s3://models-resources/story-builder/ \
-            --acl public-read --delete \
+          aws s3 sync build/ s3://models-resources/story-builder/ --delete \
             --exclude "version/*"
 
       - name: Archive to models-resources/version/<tag>/
         run: |
-          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/ \
-            --acl public-read
+          aws s3 sync build/ s3://models-resources/story-builder/version/${TAG}/
 
       - name: Invalidate CloudFront (codap-resources)
         run: |
@@ -218,31 +261,21 @@ jobs:
       - name: Invalidate CloudFront (models-resources)
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id <MODELS_RESOURCES_DIST_ID> \
+            --distribution-id E1QHTGVGYD1DWZ \
             --paths "/story-builder/*"
 ```
 
 - [ ] **Step 4: Sanity-check the YAML parses**
 
-Run:
+Run (Python 3 with pyyaml, or Ruby with YAML):
 
 ```bash
-python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml')); print('YAML OK')"
+ruby -ryaml -e 'YAML.safe_load(File.read(".github/workflows/ci.yml")); puts "YAML OK"'
 ```
 
-Expected: `YAML OK`. If you get a YAMLError, re-check indentation (workflows are sensitive to tabs vs. spaces — the file above uses 2-space indentation throughout).
+Expected: `YAML OK`. If you get a parse error, re-check indentation (workflows are sensitive to tabs vs. spaces — the file above uses 2-space indentation throughout).
 
-- [ ] **Step 5: Verify the placeholder was replaced**
-
-Run:
-
-```bash
-grep -n "MODELS_RESOURCES_DIST_ID" .github/workflows/ci.yml
-```
-
-Expected: **no output**. If grep finds the placeholder string, you forgot to substitute it in Step 3.
-
-- [ ] **Step 6: Verify locally that the validation step's bash logic is correct against the *current* mismatched state**
+- [ ] **Step 5: Verify locally that the validation step's bash logic is correct against the *current* mismatched state**
 
 Run the same logic the workflow will run, in your shell, against the working tree (which still has the mismatched versions):
 
@@ -261,7 +294,7 @@ tag=0.86 kSBVersion=0.86 package.json=0.1.0
 
 This confirms the sed and node lookups work against the real files. The mismatch (`0.86 != 0.1.0`) is the failure mode Stage 1 will exercise.
 
-- [ ] **Step 7: Commit the workflow**
+- [ ] **Step 6: Commit the workflow**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -618,7 +651,7 @@ Expected: all three list builds with recent LastModified timestamps (within the 
 
 ```bash
 aws cloudfront list-invalidations --distribution-id E1RS9TZVZBEEEC --max-items 3
-aws cloudfront list-invalidations --distribution-id <MODELS_RESOURCES_DIST_ID> --max-items 3
+aws cloudfront list-invalidations --distribution-id E1QHTGVGYD1DWZ --max-items 3
 ```
 
 Expected: the most recent invalidation on each distribution has `Status: Completed` (or `InProgress` if you check within a minute). Note the IDs — they'll typically match what step 4 printed.
