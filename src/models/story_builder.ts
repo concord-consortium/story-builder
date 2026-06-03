@@ -3,7 +3,7 @@ import {initializePlugin} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import tr from "../utilities/translate"
 
-export const kSBVersion = "0.86";
+export const kSBVersion = "0.87";
 export class StoryBuilder {
 
 	public storyArea:StoryArea;
