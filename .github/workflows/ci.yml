@@ -11,8 +11,8 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '18'
           cache: 'npm'
@@ -27,7 +27,7 @@ jobs:
         env:
           NODE_OPTIONS: --openssl-legacy-provider
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build
           path: build/
@@ -42,15 +42,15 @@ jobs:
     permissions:
       id-token: write   # required for OIDC token issuance
       contents: read
-      actions: read     # required for download-artifact@v4 under restricted permissions
+      actions: read     # required for download-artifact under restricted permissions
     concurrency:
       group: story-builder-deploy
       cancel-in-progress: false
     env:
       TAG: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
         with:
           name: build
           path: build
@@ -73,7 +73,7 @@ jobs:
             exit 1
           fi
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::612297603577:role/story-builder
           aws-region: us-east-1
