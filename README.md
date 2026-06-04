@@ -79,3 +79,36 @@ See the section about
 [deployment](https://facebook.github.io/create-react-app/docs/deployment) for 
 more information.
 
+## Releasing
+
+V3 releases ship through `.github/workflows/ci.yml`. Every push and PR runs build + Jest; pushing an annotated `vX.Y` tag additionally runs the deploy job. The deploy job refuses to ship unless three version sources agree: the pushed tag, `kSBVersion` in `src/models/story_builder.ts`, and `version` in `package.json`.
+
+To cut a release:
+
+1. Open a PR that bumps both `kSBVersion` and `package.json` `version` to `X.Y` (matching values).
+2. Merge to `master`.
+3. Push an annotated tag at the new master HEAD:
+   ```
+   git tag -a vX.Y -m "Release X.Y notes..." && git push origin vX.Y
+   ```
+
+The deploy job validates the versions, then syncs the build artifact to three S3 locations:
+
+| Target | Purpose |
+|---|---|
+| `s3://codap-resources/plugins/story-builder/` | V3 read path (served via `codap.concord.org/codap-resources/...`) |
+| `s3://models-resources/story-builder/` | org-standard canonical location |
+| `s3://models-resources/story-builder/version/vX.Y/` | immutable per-version archive |
+
+**Cache strategy.** Hashed assets under `build/static/` are uploaded with `Cache-Control: public, max-age=31536000, immutable` and **without** `--delete`, so any browser still holding cached old HTML can resolve its asset references. HTML and root manifests are uploaded with `Cache-Control: no-cache, no-store, must-revalidate` **with** `--delete`. No CloudFront invalidation is performed — the per-file headers do the work.
+
+**Recovery from a failed deploy.** Pre-AWS failures (tag mismatch, missing build, failed tests) abort with no S3 writes; fix the underlying issue and re-tag. If a sync step fails mid-deploy, re-run the failed job from the Actions UI — the `build_test` artifact is preserved, and all sync operations are idempotent (re-uploading byte-identical content is a no-op). The sync ordering (archive first, then hashed-assets-before-HTML per canonical target) guarantees that a partial failure leaves at most one canonical URL serving the previous release, never a broken state with new HTML referencing missing assets.
+
+**Legacy V2 path.** `bin/deploy_v7` and `bin/deploy_v8` still exist and rsync to `codap-server.concord.org:public_html` for the V2 hosting environment. They are unrelated to the V3 workflow above.
+
+### Known caveats
+
+- **Orphaned hashed assets accumulate.** Because canonical hashed-asset syncs omit `--delete`, every release leaves the previous build's chunks in `s3://codap-resources/plugins/story-builder/static/` and `s3://models-resources/story-builder/static/`. Accumulation is slow (tens of KB per release for stable libraries); a periodic prune is future work.
+- **First-deploy Brotli stale-cache window (one-shot).** The `codap.concord.org` CloudFront distribution auto-compresses text content and varies its cache key on `Accept-Encoding`. HTML uploaded before this workflow existed had no `Cache-Control`, so CloudFront cached it under the policy's 24h `DefaultTTL`. Path-based invalidations flush the uncompressed variant cleanly but do not reliably flush the Brotli-compressed variant (observed during commissioning of `v0.87`; reproduced across three invalidations including a `/codap-resources/plugins/*` wildcard). The natural resolution is to wait up to 24h from the pre-deploy cache time; a distribution-wide `/*` invalidation on `E3H9X49AG3GYSO` is the escape hatch. Cannot recur on subsequent deploys because the new `no-cache` header prevents CloudFront from caching HTML for more than 1 second.
+- **`build_test` has no concurrency group.** Two tags pushed within `build_test`'s ~2-minute window can race; the older tag's deploy may overwrite the newer tag's canonical content. The trade-off favors PR-iteration speed over protecting against an unlikely cadence. Don't push tags faster than `build_test` completes.
+

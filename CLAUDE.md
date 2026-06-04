@@ -63,6 +63,6 @@ V3 release flow:
 3. Push an annotated tag `vX.Y` at master HEAD (`git tag -a vX.Y -m "..." && git push origin vX.Y`).
 4. The `deploy` job validates `tag == kSBVersion == package.json.version`, then syncs to `s3://codap-resources/plugins/story-builder/`, `s3://models-resources/story-builder/`, and an immutable archive at `s3://models-resources/story-builder/version/vX.Y/`.
 
-Cache strategy: hashed assets under `build/static/` are uploaded with long-cache + immutable headers and synced **without** `--delete` (so any browser still holding cached old HTML can resolve its asset references); HTML/manifests at the root get `no-cache, no-store, must-revalidate` with `--delete`. No CloudFront invalidation is run.
+Cache strategy: hashed assets under `build/static/` are uploaded with long-cache + immutable headers and synced **without** `--delete` (so any browser still holding cached old HTML can resolve its asset references); HTML/manifests at the root get `no-cache, no-store, must-revalidate` with `--delete`. No CloudFront invalidation is run — the per-file headers do the work. Sync ordering is archive-first, then hashed-assets-before-HTML per canonical target, so a partial failure can never leave new HTML referencing not-yet-uploaded chunks.
 
-See `docs/superpowers/specs/2026-05-26-story-builder-build-and-deploy-design.md` and `docs/superpowers/plans/2026-05-26-story-builder-build-and-deploy.md` for the full design.
+Auth is GitHub OIDC into IAM role `arn:aws:iam::612297603577:role/story-builder` (no long-lived secrets in the repo). See `README.md` §Releasing for the release flow and known caveats (including the one-shot Brotli-variant cache window observed during `v0.87` commissioning).
